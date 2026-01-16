@@ -1,152 +1,100 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Fast Car MR - الإدارة</title>
 
-  <link rel="icon" type="image/png" href="favicon-32.png">
-  <link rel="manifest" href="manifest.json">
+  <!-- لوغو -->
+  <link rel="icon" href="Fastcar-logo.PNG">
 
   <!-- Leaflet -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 
-  <link rel="stylesheet" href="style.css?v=2026-1" />
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
 <header class="topbar">
   <div class="brand">
-    <img class="brandLogo" src="fastcar-logo.png" alt="Fast Car MR"
-         onerror="this.onerror=null; this.src='fastcar-logo.png';" />
-    <div class="brandText">
+    <img src="Fastcar-logo.PNG" class="brandLogo" alt="Fast Car MR">
+    <div>
       <div class="brandTitle">Fast Car MR</div>
       <div class="brandSub">لوحة الإدارة</div>
     </div>
   </div>
 
   <div class="topActions">
-    <a class="pill" href="captain.html">واجهة الكابتن</a>
-    <button id="logoutBtn" class="pill ghost" type="button">خروج</button>
+    <a href="captain.html" class="pill">واجهة الكابتن</a>
   </div>
 </header>
 
 <main class="wrap">
 
-  <!-- LOGIN -->
-  <section id="lockBox" class="card lock">
+  <!-- تسجيل دخول -->
+  <section class="card">
     <h2>تسجيل دخول الإدارة</h2>
-    <p class="muted">ادخل كلمة سر الإدارة.</p>
-
-    <div class="field">
-      <label>كلمة السر</label>
-      <input id="passInput" type="password" placeholder="••••••••••" />
-    </div>
-
-    <button id="loginBtn" class="btn primary" type="button">دخول</button>
-    <div id="lockMsg" class="msg" style="display:none;"></div>
-
-    <div class="ver" id="verBox"></div>
+    <input id="adminPass" type="password" placeholder="كلمة السر">
+    <button onclick="login()">دخول</button>
   </section>
 
-  <!-- ADMIN APP -->
-  <section id="adminApp" class="card" style="display:none;">
-    <div class="headRow">
-      <h2>إنشاء مشوار</h2>
-      <span class="badge">السعر الأدنى: 900 أوقية قديمة</span>
-    </div>
+  <!-- التطبيق -->
+  <section id="adminApp" style="display:none" class="card">
+    <h3>إنشاء مشوار</h3>
 
-    <div class="grid">
-      <div class="field">
-        <label>اسم الزبون</label>
-        <input id="custName" type="text" placeholder="مثال: Fatimetou" />
-      </div>
-      <div class="field">
-        <label>رقم الزبون</label>
-        <input id="custPhone" type="tel" inputmode="tel" placeholder="مثال: 32504394" />
-      </div>
-    </div>
+    <input id="custName" placeholder="اسم الزبون">
+    <input id="custPhone" placeholder="رقم الزبون">
 
-    <div class="grid">
-      <div class="field">
-        <label>الانطلاق (نص)</label>
-        <input id="pickupText" type="text" placeholder="اضغط على الخريطة لتحديد الانطلاق" />
-      </div>
-      <div class="field">
-        <label>الوجهة (نص)</label>
-        <input id="dropoffText" type="text" placeholder="اضغط على الخريطة لتحديد الوجهة" />
-      </div>
-    </div>
+    <div id="map"></div>
 
-    <div class="grid">
-      <div class="field">
-        <label>السعر (أوقية قديمة) — تلقائي</label>
-        <input id="priceOld" type="number" inputmode="numeric" value="900" />
-      </div>
-      <div class="field">
-        <label>ملاحظة للكابتن (اختياري)</label>
-        <input id="note" type="text" placeholder="مثال: اتصل قبل الوصول" />
-      </div>
-    </div>
+    <input id="price" value="900" readonly>
 
-    <!-- MAP -->
-    <div class="mapBox">
-      <div class="mapHint">
-        اضغط على الخريطة: <b>أول مرة = الانطلاق</b>، <b>ثاني مرة = الوجهة</b> — السعر يحسب تلقائيًا.
-      </div>
+    <input id="waNumbers" placeholder="أرقام واتساب: 22223333,33334444">
 
-      <div id="map"></div>
-
-      <div class="mapInfo">
-        <div>الانطلاق: <b id="pickupLabel">غير محدد</b></div>
-        <div>الوجهة: <b id="dropoffLabel">غير محدد</b></div>
-        <div>المسافة: <b id="distanceLabel">—</b></div>
-        <div>السعر التلقائي: <b id="autoPriceLabel">—</b> أوقية قديمة</div>
-      </div>
-
-      <div class="btnRow">
-        <button id="locateBtn" class="btn ghost" type="button">📍 موقعي الحالي (للإنطلاق)</button>
-        <button id="resetMapBtn" class="btn ghost" type="button">تصفير المواقع</button>
-      </div>
-    </div>
-
-    <div class="btnRow">
-      <button id="createTripBtn" class="btn primary" type="button">إرسال للكباتن</button>
-      <button id="clearAllBtn" class="btn danger ghost" type="button">حذف كل المشاوير</button>
-    </div>
-
-    <div class="smallHint">
-      * GitHub Pages (LocalStorage): المشاوير تظهر على نفس الجهاز/المتصفح فقط.
-    </div>
-  </section>
-
-  <!-- ADMIN LIST -->
-  <section id="adminListBox" class="card" style="display:none;">
-    <div class="headRow">
-      <h2>المشاوير</h2>
-      <button id="refreshBtn" class="btn ghost small" type="button">تحديث</button>
-    </div>
-
-    <div class="filters">
-      <button class="chip active" data-filter="all">الكل</button>
-      <button class="chip" data-filter="available">متوفر</button>
-      <button class="chip" data-filter="accepted">مقبول</button>
-      <button class="chip" data-filter="started">بدأ</button>
-      <button class="chip" data-filter="finished">انتهى</button>
-      <button class="chip" data-filter="rejected">مرفوض</button>
-    </div>
-
-    <div id="emptyAdmin" class="empty">لا يوجد مشاوير بعد.</div>
-    <div id="adminTrips" class="list"></div>
-
-    <div class="ver" id="verBox2"></div>
+    <button onclick="sendWhatsApp()">إرسال واتساب</button>
   </section>
 
 </main>
 
-<div id="toast" class="toast" style="display:none;"></div>
-
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="admin.js?v=2026-1"></script>
+
+<script>
+/* ===== LOGIN ===== */
+const ADMIN_PASS = "Fastcaradmin2026";
+function login(){
+  if(document.getElementById("adminPass").value === ADMIN_PASS){
+    document.querySelector(".card").style.display="none";
+    document.getElementById("adminApp").style.display="block";
+    setTimeout(()=>map.invalidateSize(),300);
+  } else {
+    alert("كلمة السر غلط");
+  }
+}
+
+/* ===== MAP ===== */
+let map = L.map("map").setView([18.07,-15.95],13);
+
+L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",{
+  maxZoom:20
+}).addTo(map);
+
+/* ===== WhatsApp ===== */
+function sendWhatsApp(){
+  const nums = document.getElementById("waNumbers").value.split(",");
+  const msg = `🚗 مشوار جديد
+الزبون: ${custName.value}
+الرقم: ${custPhone.value}
+السعر: ${price.value} أوقية`;
+
+  const url = `https://wa.me/${nums[0].trim()}?text=${encodeURIComponent(msg)}`;
+  window.open(url,"_blank");
+}
+</script>
+
+<style>
+#map{height:400px;border-radius:20px;margin:15px 0}
+.brandLogo{width:60px;height:60px}
+</style>
+
 </body>
 </html>
