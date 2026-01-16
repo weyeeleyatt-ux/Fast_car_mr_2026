@@ -9,7 +9,10 @@
   <link rel="apple-touch-icon" href="fastcar-icon-192.png">
   <link rel="manifest" href="manifest.json">
 
-  <link rel="stylesheet" href="style.css?v=2026-2" />
+  <!-- Leaflet (Map) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+
+  <link rel="stylesheet" href="style.css?v=2026-map-1" />
 </head>
 <body>
 
@@ -42,13 +45,14 @@
 
     <button id="loginBtn" class="btn primary" type="button">دخول</button>
     <div id="lockMsg" class="msg" style="display:none;"></div>
+
     <div class="ver" id="verBox"></div>
   </section>
 
   <section id="adminApp" class="card" style="display:none;">
     <div class="headRow">
       <h2>إنشاء مشوار</h2>
-      <span class="badge">السعر الافتراضي: 900 أوقية قديمة</span>
+      <span class="badge">سعر أدنى: 900 أوقية قديمة</span>
     </div>
 
     <div class="grid">
@@ -64,23 +68,45 @@
 
     <div class="grid">
       <div class="field">
-        <label>الانطلاق</label>
-        <input id="pickupText" type="text" placeholder="مثال: دار النعيم" />
+        <label>الانطلاق (نص)</label>
+        <input id="pickupText" type="text" placeholder="اضغط على الخريطة لتحديد الانطلاق" />
       </div>
       <div class="field">
-        <label>الوجهة</label>
-        <input id="dropoffText" type="text" placeholder="مثال: توجنين" />
+        <label>الوجهة (نص)</label>
+        <input id="dropoffText" type="text" placeholder="اضغط على الخريطة لتحديد الوجهة" />
       </div>
     </div>
 
     <div class="grid">
       <div class="field">
-        <label>السعر (أوقية قديمة)</label>
+        <label>السعر (أوقية قديمة) — تلقائي</label>
         <input id="priceOld" type="number" inputmode="numeric" value="900" />
       </div>
       <div class="field">
         <label>ملاحظة للكابتن (اختياري)</label>
         <input id="note" type="text" placeholder="مثال: اتصل قبل الوصول" />
+      </div>
+    </div>
+
+    <!-- MAP -->
+    <div class="mapBox">
+      <div class="mapHint">
+        اضغط على الخريطة:
+        <b>أول مرة = الانطلاق</b>، <b>ثاني مرة = الوجهة</b>، ويحسب السعر تلقائيًا.
+      </div>
+
+      <div id="map"></div>
+
+      <div class="mapInfo">
+        <div>الانطلاق: <b id="pickupLabel">غير محدد</b></div>
+        <div>الوجهة: <b id="dropoffLabel">غير محدد</b></div>
+        <div>المسافة: <b id="distanceLabel">—</b></div>
+        <div>السعر التلقائي: <b id="autoPriceLabel">—</b> أوقية قديمة</div>
+      </div>
+
+      <div class="btnRow">
+        <button id="locateBtn" class="btn ghost" type="button">📍 موقعي الحالي (للإنطلاق)</button>
+        <button id="resetMapBtn" class="btn ghost" type="button">تصفير المواقع</button>
       </div>
     </div>
 
@@ -90,7 +116,7 @@
     </div>
 
     <div class="smallHint">
-      * نسخة GitHub Pages (LocalStorage) — على نفس الجهاز فقط.
+      * هذه النسخة على GitHub Pages (LocalStorage) — تعمل على نفس الجهاز فقط.
     </div>
   </section>
 
@@ -119,6 +145,9 @@
 
 <div id="toast" class="toast" style="display:none;"></div>
 
-<script src="admin.js?v=2026-2"></script>
+<!-- Leaflet (Map) -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script src="admin.js?v=2026-map-1"></script>
 </body>
 </html>
