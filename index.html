@@ -6,19 +6,18 @@
   <title>Fast Car MR - الإدارة</title>
 
   <link rel="icon" type="image/png" href="favicon-32.png">
-  <link rel="apple-touch-icon" href="fastcar-icon-192.png">
   <link rel="manifest" href="manifest.json">
 
-  <!-- Leaflet (Map) -->
+  <!-- Leaflet -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 
-  <link rel="stylesheet" href="style.css?v=2026-map-1" />
+  <link rel="stylesheet" href="style.css?v=2026-1" />
 </head>
 <body>
 
 <header class="topbar">
   <div class="brand">
-    <img class="brandLogo" src="fastcar-logo.PNG" alt="Fast Car MR"
+    <img class="brandLogo" src="fastcar-logo.png" alt="Fast Car MR"
          onerror="this.onerror=null; this.src='fastcar-logo.png';" />
     <div class="brandText">
       <div class="brandTitle">Fast Car MR</div>
@@ -34,6 +33,7 @@
 
 <main class="wrap">
 
+  <!-- LOGIN -->
   <section id="lockBox" class="card lock">
     <h2>تسجيل دخول الإدارة</h2>
     <p class="muted">ادخل كلمة سر الإدارة.</p>
@@ -49,10 +49,11 @@
     <div class="ver" id="verBox"></div>
   </section>
 
+  <!-- ADMIN APP -->
   <section id="adminApp" class="card" style="display:none;">
     <div class="headRow">
       <h2>إنشاء مشوار</h2>
-      <span class="badge">سعر أدنى: 900 أوقية قديمة</span>
+      <span class="badge">السعر الأدنى: 900 أوقية قديمة</span>
     </div>
 
     <div class="grid">
@@ -91,8 +92,7 @@
     <!-- MAP -->
     <div class="mapBox">
       <div class="mapHint">
-        اضغط على الخريطة:
-        <b>أول مرة = الانطلاق</b>، <b>ثاني مرة = الوجهة</b>، ويحسب السعر تلقائيًا.
+        اضغط على الخريطة: <b>أول مرة = الانطلاق</b>، <b>ثاني مرة = الوجهة</b> — السعر يحسب تلقائيًا.
       </div>
 
       <div id="map"></div>
@@ -116,10 +116,11 @@
     </div>
 
     <div class="smallHint">
-      * هذه النسخة على GitHub Pages (LocalStorage) — تعمل على نفس الجهاز فقط.
+      * GitHub Pages (LocalStorage): المشاوير تظهر على نفس الجهاز/المتصفح فقط.
     </div>
   </section>
 
+  <!-- ADMIN LIST -->
   <section id="adminListBox" class="card" style="display:none;">
     <div class="headRow">
       <h2>المشاوير</h2>
@@ -145,9 +146,7 @@
 
 <div id="toast" class="toast" style="display:none;"></div>
 
-<!-- Leaflet (Map) -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
-<script src="admin.js?v=2026-map-1"></script>
+<script src="admin.js?v=2026-1"></script>
 </body>
 </html>
