@@ -6,17 +6,15 @@
   <title>Fast Car MR - الكابتن</title>
 
   <link rel="icon" type="image/png" href="favicon-32.png">
-  <link rel="apple-touch-icon" href="fastcar-icon-192.png">
   <link rel="manifest" href="manifest.json">
 
-  <link rel="stylesheet" href="style.css?v=2026-2" />
+  <link rel="stylesheet" href="style.css?v=2026-1" />
 </head>
 <body>
 
 <header class="topbar">
   <div class="brand">
-    <img class="brandLogo" src="fastcar-logo.PNG" alt="Fast Car MR"
-         onerror="this.onerror=null; this.src='fastcar-logo.png';" />
+    <img class="brandLogo" src="fastcar-logo.png" alt="Fast Car MR">
     <div class="brandText">
       <div class="brandTitle">Fast Car MR</div>
       <div class="brandSub">واجهة الكابتن</div>
@@ -24,58 +22,66 @@
   </div>
 
   <div class="topActions">
-    <a class="pill" href="index.html">الإدارة</a>
-    <button id="logoutBtn" class="pill ghost" type="button">خروج</button>
+    <a class="pill" href="index.html">واجهة الإدارة</a>
+    <button id="logoutCapBtn" class="pill ghost" type="button">خروج</button>
   </div>
 </header>
 
 <main class="wrap">
 
-  <section id="lockBox" class="card lock">
+  <section id="capLockBox" class="card lock">
     <h2>تسجيل دخول الكابتن</h2>
-    <p class="muted">ادخل كلمة السر الخاصة بالكباتن.</p>
+    <p class="muted">ادخل كلمة سر الكابتن.</p>
 
     <div class="field">
       <label>كلمة السر</label>
-      <input id="passInput" type="password" placeholder="••••••••••" />
+      <input id="capPassInput" type="password" placeholder="••••••••••" />
     </div>
 
-    <button id="loginBtn" class="btn primary" type="button">دخول</button>
-    <div id="lockMsg" class="msg" style="display:none;"></div>
-    <div class="ver" id="verBox"></div>
+    <button id="capLoginBtn" class="btn primary" type="button">دخول</button>
+    <div id="capLockMsg" class="msg" style="display:none;"></div>
+
+    <div class="ver" id="capVerBox"></div>
   </section>
 
-  <section id="captainApp" class="card" style="display:none;">
+  <section id="capApp" class="card" style="display:none;">
     <div class="headRow">
       <h2>المشاوير المتوفرة</h2>
-      <button id="refreshBtn" class="btn ghost small" type="button">تحديث</button>
+      <button id="capRefreshBtn" class="btn ghost small" type="button">تحديث</button>
+    </div>
+
+    <div class="filters">
+      <button class="chip active" data-filter="available">متوفر</button>
+      <button class="chip" data-filter="accepted">مقبول</button>
+      <button class="chip" data-filter="started">بدأ</button>
+      <button class="chip" data-filter="finished">انتهى</button>
+      <button class="chip" data-filter="rejected">مرفوض</button>
+      <button class="chip" data-filter="all">الكل</button>
     </div>
 
     <div class="grid">
       <div class="field">
-        <label>اسم الكابتن (مطلوب للقبول)</label>
-        <input id="captainName" type="text" placeholder="مثال: Captain Ahmed" />
+        <label>اسم الكابتن</label>
+        <input id="capName" type="text" placeholder="مثال: Ahmed" />
       </div>
       <div class="field">
-        <label>عرض</label>
-        <select id="capView" class="select">
-          <option value="available">متوفر فقط</option>
-          <option value="mine">مشاويري</option>
-          <option value="all">الكل</option>
-        </select>
+        <label>رقمك (اختياري)</label>
+        <input id="capPhone" type="tel" inputmode="tel" placeholder="مثال: 22223333" />
       </div>
     </div>
 
-    <div id="emptyCaptain" class="empty">لا يوجد مشاوير متوفرة الآن.</div>
-    <div id="captainTrips" class="list"></div>
+    <div id="capEmpty" class="empty">لا يوجد مشاوير الآن.</div>
+    <div id="capTrips" class="list"></div>
 
-    <div class="ver" id="verBox2"></div>
+    <div class="smallHint">
+      * تذكير: LocalStorage = نفس الجهاز/المتصفح فقط.
+    </div>
   </section>
 
 </main>
 
 <div id="toast" class="toast" style="display:none;"></div>
 
-<script src="captain.js?v=2026-2"></script>
+<script src="captain.js?v=2026-1"></script>
 </body>
 </html>
