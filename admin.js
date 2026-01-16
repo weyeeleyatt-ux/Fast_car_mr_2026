@@ -401,9 +401,22 @@ function setupUI(){
 
 window.addEventListener("DOMContentLoaded", ()=>{
   setupAuth();
+
   if(isAuthed()){
+    // إظهار الواجهات أولاً
+    document.getElementById("adminApp").style.display = "block";
+    document.getElementById("adminListBox").style.display = "block";
+
+    // تهيئة الخريطة
     initMap();
     setupUI();
     renderAdmin();
+
+    // 🔥 الحل السحري لمشكلة الخريطة الرمادية
+    setTimeout(()=>{
+      if(map){
+        map.invalidateSize();
+      }
+    }, 300);
   }
 });
