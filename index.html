@@ -6,11 +6,7 @@
   <title>Fast Car MR - الإدارة</title>
 
   <link rel="icon" href="Fastcar-logo.PNG">
-
-  <!-- Leaflet -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-
-  <link rel="stylesheet" href="style.css?v=2026_clean_1" />
+  <link rel="stylesheet" href="style.css?v=keep" />
 </head>
 <body>
 
@@ -30,91 +26,117 @@
 
 <main class="wrap">
 
-  <!-- Login -->
   <section id="lockBox" class="card lock">
     <h2>تسجيل دخول الإدارة</h2>
-    <p class="muted">ادخل كلمة سر الإدارة.</p>
+    <p class="muted">كلمة السر</p>
     <div class="field">
       <label>كلمة السر</label>
-      <input id="passInput" type="password" placeholder="••••••••••" />
+      <input id="passInput" type="password" placeholder="••••••••••">
     </div>
     <button id="loginBtn" class="btn primary" type="button">دخول</button>
     <div id="lockMsg" class="msg" style="display:none;"></div>
   </section>
 
-  <!-- App -->
   <section id="adminApp" class="card" style="display:none;">
     <div class="headRow">
       <h2>إنشاء مشوار</h2>
-      <span class="badge">السعر الأدنى: 900 أوقية قديمة</span>
+      <span class="badge">كل 3 كم = 900 أوقية قديمة</span>
     </div>
 
     <div class="grid">
       <div class="field">
         <label>اسم الزبون</label>
-        <input id="custName" type="text" placeholder="مثال: Fatimetou" />
+        <input id="custName" placeholder="مثال: Ahmed">
       </div>
       <div class="field">
         <label>رقم الزبون</label>
-        <input id="custPhone" type="tel" inputmode="tel" placeholder="مثال: 32504394" />
+        <input id="custPhone" inputmode="tel" placeholder="مثال: 22223333">
       </div>
     </div>
 
     <div class="grid">
       <div class="field">
-        <label>الانطلاق (نص)</label>
-        <input id="pickupText" type="text" placeholder="اضغط على الخريطة لتحديد الانطلاق" />
+        <label>الانطلاق (اكتب أو اختر)</label>
+        <input id="pickupText" placeholder="اكتب الانطلاق">
       </div>
       <div class="field">
-        <label>الوجهة (نص)</label>
-        <input id="dropoffText" type="text" placeholder="اضغط على الخريطة لتحديد الوجهة" />
+        <label>الوجهة (اكتب أو اختر)</label>
+        <input id="dropoffText" placeholder="اكتب الوجهة">
       </div>
     </div>
 
     <div class="grid">
       <div class="field">
         <label>السعر (أوقية قديمة) — تلقائي</label>
-        <input id="priceOld" type="number" inputmode="numeric" value="900" />
+        <input id="priceOld" type="number" value="900">
       </div>
       <div class="field">
         <label>ملاحظة (اختياري)</label>
-        <input id="note" type="text" placeholder="مثال: اتصل قبل الوصول" />
+        <input id="note" placeholder="ملاحظة للكابتن">
       </div>
-    </div>
-
-    <div class="field">
-      <label>أرقام واتساب (افصل بينهم بفاصلة)</label>
-      <input id="waNumbers" type="text" placeholder="مثال: 22223333,33334444" />
     </div>
 
     <div class="mapBox">
       <div class="mapHint">
-        اضغط على الخريطة: أول مرة = الانطلاق، ثاني مرة = الوجهة. السعر يحسب تلقائيًا.
+        Google Maps نواكشوط: تقدر تضغط على الخريطة (A الانطلاق / B الوجهة) أو تكتبهم فوق.
       </div>
-      <div id="map"></div>
+
+      <div id="map" style="height:420px;border-radius:18px;overflow:hidden;"></div>
+
       <div class="mapInfo">
-        <div>الانطلاق: <b id="pickupLabel">غير محدد</b></div>
-        <div>الوجهة: <b id="dropoffLabel">غير محدد</b></div>
         <div>المسافة: <b id="distanceLabel">—</b></div>
-        <div>السعر: <b id="autoPriceLabel">900</b> أوقية قديمة</div>
+        <div>السعر التلقائي: <b id="autoPriceLabel">900</b> أوقية قديمة</div>
       </div>
+
       <div class="btnRow">
+        <button id="locateBtn" class="btn ghost" type="button">📍 موقعي (انطلاق)</button>
         <button id="resetMapBtn" class="btn ghost" type="button">تصفير</button>
-        <button id="locateBtn" class="btn ghost" type="button">📍 موقعي</button>
       </div>
     </div>
 
     <div class="btnRow">
-      <button id="createTripBtn" class="btn primary" type="button">إرسال مشوار</button>
-      <button id="sendWaBtn" class="btn ghost" type="button">إرسال واتساب</button>
+      <button id="createTripBtn" class="btn primary" type="button">إرسال للكباتن</button>
     </div>
+  </section>
+
+  <section id="adminListBox" class="card" style="display:none;">
+    <div class="headRow">
+      <h2>المشاوير + الحالات</h2>
+      <button id="refreshBtn" class="btn ghost small" type="button">تحديث</button>
+    </div>
+
+    <div class="filters">
+      <button class="chip active" data-filter="all">الكل</button>
+      <button class="chip" data-filter="متوفر">متوفر</button>
+      <button class="chip" data-filter="مقبول">مقبول</button>
+      <button class="chip" data-filter="بدأ">بدأ</button>
+      <button class="chip" data-filter="انتهى">انتهى</button>
+      <button class="chip" data-filter="مرفوض">مرفوض</button>
+    </div>
+
+    <div id="emptyAdmin" class="empty">لا يوجد مشاوير.</div>
+    <div id="adminTrips" class="list"></div>
+
+    <hr style="border:none;border-top:1px solid #e5e7eb;margin:14px 0">
+
+    <h3 style="margin:0 0 10px">شحن رصيد كابتن</h3>
+    <div class="grid">
+      <div class="field">
+        <label>رقم الكابتن</label>
+        <input id="topupPhone" inputmode="tel" placeholder="رقم الكابتن">
+      </div>
+      <div class="field">
+        <label>مبلغ الشحن (أوقية قديمة)</label>
+        <input id="topupAmount" type="number" placeholder="مثال: 10000">
+      </div>
+    </div>
+    <button id="topupBtn" class="btn primary" type="button">شحن</button>
   </section>
 
 </main>
 
 <div id="toast" class="toast" style="display:none;"></div>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="admin.js?v=2026_clean_1"></script>
+<script src="admin.js?v=final"></script>
 </body>
 </html>
