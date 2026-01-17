@@ -1,0 +1,67 @@
+-- ===== TRIPS =====
+create table if not exists public.trips (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+
+  customer_name text not null,
+  customer_phone text not null,
+
+  pickup_text text not null,
+  dropoff_text text not null,
+
+  pickup_lat double precision,
+  pickup_lng double precision,
+  dropoff_lat double precision,
+  dropoff_lng double precision,
+
+  distance_km double precision,
+  price_old integer not null default 900,
+
+  note text,
+  status text not null default 'متوفر', -- متوفر/مقبول/مرفوض/بدأ/انتهى
+
+  captain_id uuid,
+  captain_name text
+);
+
+-- ===== CAPTAINS (حساب الكابتن) =====
+create table if not exists public.captains (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+
+  phone text unique not null,
+  pin text not null,
+  full_name text not null,
+
+  car_type text,
+  car_color text,
+  plate text,
+  photo_url text,
+
+  balance_old integer not null default 0
+);
+
+-- ===== WALLET TRANSACTIONS =====
+create table if not exists public.wallet_tx (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+
+  captain_id uuid not null references public.captains(id) on delete cascade,
+  type text not null,        -- topup / fee
+  amount_old integer not null,
+  note text
+);
+
+-- ===== RLS (مفتوح للتجربة) =====
+alter table public.trips enable row level security;
+alter table public.captains enable row level security;
+alter table public.wallet_tx enable row level security;
+
+drop policy if exists "trips_all" on public.trips;
+create policy "trips_all" on public.trips for all to anon using (true) with check (true);
+
+drop policy if exists "captains_all" on public.captains;
+create policy "captains_all" on public.captains for all to anon using (true) with check (true);
+
+drop policy if exists "wallet_all" on public.wallet_tx;
+create policy "wallet_all" on public.wallet_tx for all to anon using (true) with check (true);
