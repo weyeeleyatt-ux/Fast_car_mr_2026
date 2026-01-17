@@ -256,8 +256,8 @@ function whatsappCustomer(tripId){
 }
 
 function openWhatsAppFromForm(){
-  const phone = ($("custPhone").value || "").trim();
-  if(!phone) return toast("اكتب رقم الزبون أولاً");
+  const phone = ($("waTo").value || "").trim();
+if(!phone) return toast("اكتب رقم واتساب للإرسال أولاً");
   const url = whatsappLink(phone, whatsappDraftText());
   window.open(url, "_blank");
 }
