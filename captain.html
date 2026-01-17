@@ -6,7 +6,7 @@
   <title>Fast Car MR - الكابتن</title>
 
   <link rel="icon" href="Fastcar-logo.PNG">
-  <link rel="stylesheet" href="style.css?v=fc_all_1" />
+  <link rel="stylesheet" href="style.css?v=keep_2026" />
 </head>
 <body>
 
@@ -27,27 +27,14 @@
 
 <main class="wrap">
 
-  <!-- CAPTAIN GATE PASSWORD -->
-  <section id="capGateBox" class="card lock">
-    <h2>دخول الكابتن</h2>
-    <p class="muted">كلمة سر الكباتن</p>
-    <div class="field">
-      <label>كلمة السر</label>
-      <input id="capGatePass" type="password" placeholder="••••••••••" />
-    </div>
-    <button id="capGateBtn" class="btn primary" type="button">دخول</button>
-    <div id="capGateMsg" class="msg" style="display:none;"></div>
-  </section>
-
-  <!-- LOGIN/REGISTER -->
-  <section id="capLockBox" class="card lock" style="display:none;">
+  <section id="capLockBox" class="card lock">
     <h2>دخول / تسجيل كابتن</h2>
-    <p class="muted">اكتب رقمك + PIN</p>
+    <p class="muted">رقمك + PIN</p>
 
     <div class="grid">
       <div class="field">
         <label>رقم الهاتف</label>
-        <input id="capPhone" type="tel" inputmode="tel" placeholder="مثال: 22223333">
+        <input id="capPhone" inputmode="tel" placeholder="مثال: 22223333">
       </div>
       <div class="field">
         <label>PIN</label>
@@ -63,7 +50,6 @@
     <div id="capLockMsg" class="msg" style="display:none;"></div>
   </section>
 
-  <!-- APP -->
   <section id="capApp" class="card" style="display:none;">
     <div class="headRow">
       <h2>حساب الكابتن</h2>
@@ -77,24 +63,24 @@
       </div>
       <div class="field">
         <label>نوع السيارة</label>
-        <input id="carType" placeholder="مثال: Toyota">
+        <input id="carType" placeholder="Toyota...">
       </div>
     </div>
 
     <div class="grid">
       <div class="field">
         <label>لون السيارة</label>
-        <input id="carColor" placeholder="مثال: أخضر/أبيض">
+        <input id="carColor" placeholder="أخضر/أبيض...">
       </div>
       <div class="field">
         <label>رقم اللوحة</label>
-        <input id="plate" placeholder="مثال: 1234">
+        <input id="plate" placeholder="1234">
       </div>
     </div>
 
     <button id="saveProfileBtn" class="btn primary" type="button">حفظ البروفايل</button>
 
-    <hr class="sep">
+    <hr style="border:none;border-top:1px solid #e5e7eb;margin:14px 0">
 
     <div class="headRow">
       <h2>المشاوير</h2>
@@ -119,6 +105,6 @@
 </main>
 
 <div id="toast" class="toast" style="display:none;"></div>
-<script src="captain.js?v=fc_all_1"></script>
+<script src="captain.js?v=all_final"></script>
 </body>
 </html>
