@@ -6,7 +6,7 @@
   <title>Fast Car MR - الإدارة</title>
 
   <link rel="icon" href="Fastcar-logo.PNG">
-  <link rel="stylesheet" href="style.css?v=keep" />
+  <link rel="stylesheet" href="style.css?v=fc_all_1" />
 </head>
 <body>
 
@@ -26,17 +26,21 @@
 
 <main class="wrap">
 
+  <!-- LOGIN -->
   <section id="lockBox" class="card lock">
     <h2>تسجيل دخول الإدارة</h2>
-    <p class="muted">كلمة السر</p>
+    <p class="muted">ادخل كلمة السر.</p>
+
     <div class="field">
       <label>كلمة السر</label>
-      <input id="passInput" type="password" placeholder="••••••••••">
+      <input id="passInput" type="password" placeholder="••••••••••" />
     </div>
+
     <button id="loginBtn" class="btn primary" type="button">دخول</button>
     <div id="lockMsg" class="msg" style="display:none;"></div>
   </section>
 
+  <!-- ADMIN APP -->
   <section id="adminApp" class="card" style="display:none;">
     <div class="headRow">
       <h2>إنشاء مشوار</h2>
@@ -46,42 +50,42 @@
     <div class="grid">
       <div class="field">
         <label>اسم الزبون</label>
-        <input id="custName" placeholder="مثال: Ahmed">
+        <input id="custName" type="text" placeholder="مثال: Ahmed" />
       </div>
       <div class="field">
         <label>رقم الزبون</label>
-        <input id="custPhone" inputmode="tel" placeholder="مثال: 22223333">
+        <input id="custPhone" type="tel" inputmode="tel" placeholder="مثال: 22223333" />
       </div>
     </div>
 
     <div class="grid">
       <div class="field">
         <label>الانطلاق (اكتب أو اختر)</label>
-        <input id="pickupText" placeholder="اكتب الانطلاق">
+        <input id="pickupText" type="text" placeholder="الانطلاق" />
       </div>
       <div class="field">
         <label>الوجهة (اكتب أو اختر)</label>
-        <input id="dropoffText" placeholder="اكتب الوجهة">
+        <input id="dropoffText" type="text" placeholder="الوجهة" />
       </div>
     </div>
 
     <div class="grid">
       <div class="field">
         <label>السعر (أوقية قديمة) — تلقائي</label>
-        <input id="priceOld" type="number" value="900">
+        <input id="priceOld" type="number" inputmode="numeric" value="900" />
       </div>
       <div class="field">
         <label>ملاحظة (اختياري)</label>
-        <input id="note" placeholder="ملاحظة للكابتن">
+        <input id="note" type="text" placeholder="ملاحظة للكابتن" />
       </div>
     </div>
 
     <div class="mapBox">
       <div class="mapHint">
-        Google Maps نواكشوط: تقدر تضغط على الخريطة (A الانطلاق / B الوجهة) أو تكتبهم فوق.
+        Google Maps نواكشوط: اضغط على الخريطة (A الانطلاق / B الوجهة) أو اكتبهم فوق.
       </div>
 
-      <div id="map" style="height:420px;border-radius:18px;overflow:hidden;"></div>
+      <div id="map"></div>
 
       <div class="mapInfo">
         <div>المسافة: <b id="distanceLabel">—</b></div>
@@ -99,9 +103,10 @@
     </div>
   </section>
 
+  <!-- ADMIN LIST + TOPUP -->
   <section id="adminListBox" class="card" style="display:none;">
     <div class="headRow">
-      <h2>المشاوير + الحالات</h2>
+      <h2>المشاوير (الحالات + حذف)</h2>
       <button id="refreshBtn" class="btn ghost small" type="button">تحديث</button>
     </div>
 
@@ -117,17 +122,17 @@
     <div id="emptyAdmin" class="empty">لا يوجد مشاوير.</div>
     <div id="adminTrips" class="list"></div>
 
-    <hr style="border:none;border-top:1px solid #e5e7eb;margin:14px 0">
+    <hr class="sep">
 
-    <h3 style="margin:0 0 10px">شحن رصيد كابتن</h3>
+    <h3 class="h3">شحن رصيد كابتن</h3>
     <div class="grid">
       <div class="field">
         <label>رقم الكابتن</label>
-        <input id="topupPhone" inputmode="tel" placeholder="رقم الكابتن">
+        <input id="topupPhone" type="tel" inputmode="tel" placeholder="رقم الكابتن" />
       </div>
       <div class="field">
         <label>مبلغ الشحن (أوقية قديمة)</label>
-        <input id="topupAmount" type="number" placeholder="مثال: 10000">
+        <input id="topupAmount" type="number" inputmode="numeric" placeholder="مثال: 10000" />
       </div>
     </div>
     <button id="topupBtn" class="btn primary" type="button">شحن</button>
@@ -137,6 +142,6 @@
 
 <div id="toast" class="toast" style="display:none;"></div>
 
-<script src="admin.js?v=final"></script>
+<script src="admin.js?v=fc_all_1"></script>
 </body>
 </html>
