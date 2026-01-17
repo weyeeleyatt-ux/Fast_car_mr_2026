@@ -1,206 +1,279 @@
-const VERSION = "CAPTAIN v2026-1";
-const CAPTAIN_PASSWORD = "fastcarcaptain20032026";
+const SUPABASE_URL = "PASTE_SUPABASE_URL_HERE";
+const SUPABASE_ANON_KEY = "PASTE_SUPABASE_ANON_KEY_HERE";
 
-// ✅ نفس المفتاح تبع الإدارة
-const STORE_KEY = "fastcar_shared_trips_v1";
-const AUTH_KEY_CAP = "fastcar_auth_cap_v1";
+const AUTH_KEY_CAPTAIN = "fastcar_captain_session_v1";
+const FEE_PERCENT = 0.07;
 
-const STATUS = {
-  AVAILABLE: "متوفر",
-  ACCEPTED: "مقبول",
-  REJECTED: "مرفوض",
-  STARTED: "بدأ",
-  FINISHED: "انتهى",
-};
-
-let capFilter = "available";
+let supa = null;
+let cap = null;
+let capFilter = "متوفر";
 
 function $(id){ return document.getElementById(id); }
-
 function toast(msg){
-  const t = $("toast");
-  if(!t){ alert(msg); return; }
-  t.textContent = msg;
-  t.style.display = "block";
-  clearTimeout(window.__toastTO);
-  window.__toastTO = setTimeout(()=> t.style.display = "none", 2300);
+  const t = $("toast"); if(!t){ alert(msg); return; }
+  t.textContent = msg; t.style.display="block";
+  clearTimeout(window.__t); window.__t=setTimeout(()=>t.style.display="none",2300);
 }
-
-function loadTrips(){
-  try { return JSON.parse(localStorage.getItem(STORE_KEY) || "[]"); }
-  catch { return []; }
-}
-function saveTrips(trips){
-  localStorage.setItem(STORE_KEY, JSON.stringify(trips));
-}
-
-function isAuthed(){ return sessionStorage.getItem(AUTH_KEY_CAP) === "1"; }
-function setAuthed(ok){ sessionStorage.setItem(AUTH_KEY_CAP, ok ? "1" : "0"); }
-
-function setupAuth(){
-  $("capVerBox") && ($("capVerBox").textContent = VERSION);
-
-  $("logoutCapBtn")?.addEventListener("click", ()=>{
-    setAuthed(false);
-    location.reload();
-  });
-
-  if(isAuthed()){
-    $("capLockBox").style.display = "none";
-    $("capApp").style.display = "block";
-    return;
-  }
-
-  $("capLoginBtn")?.addEventListener("click", ()=>{
-    const p = ($("capPassInput")?.value || "").trim();
-    if(p.toLowerCase() === CAPTAIN_PASSWORD.toLowerCase()){
-      setAuthed(true);
-      toast("✅ تم الدخول");
-      location.reload();
-    } else {
-      $("capLockMsg").style.display = "block";
-      $("capLockMsg").textContent = "❌ كلمة السر غير صحيحة";
-    }
-  });
-}
-
 function round1(n){ return Math.round(n*10)/10; }
 
-function matchesFilter(t){
-  if(capFilter === "all") return true;
-  const mapF = {
-    available: STATUS.AVAILABLE,
-    accepted: STATUS.ACCEPTED,
-    started: STATUS.STARTED,
-    finished: STATUS.FINISHED,
-    rejected: STATUS.REJECTED
-  };
-  return t.status === mapF[capFilter];
+async function loadScript(src){
+  await new Promise((resolve,reject)=>{
+    const s=document.createElement("script");
+    s.src=src; s.async=true; s.onload=resolve; s.onerror=reject;
+    document.head.appendChild(s);
+  });
 }
 
-function renderCaptain(){
+async function initSupabase(){
+  if(!window.supabase) await loadScript("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2");
+  supa = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+}
+
+function saveSession(captainId){ localStorage.setItem(AUTH_KEY_CAPTAIN, captainId); }
+function loadSession(){ return localStorage.getItem(AUTH_KEY_CAPTAIN); }
+function clearSession(){ localStorage.removeItem(AUTH_KEY_CAPTAIN); }
+
+function setUIAuthed(on){
+  $("capLockBox").style.display = on ? "none" : "block";
+  $("capApp").style.display = on ? "block" : "none";
+}
+
+function esc(s){
+  return String(s).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;");
+}
+
+async function loadCaptainById(id){
+  const { data, error } = await supa.from("captains").select("*").eq("id", id).single();
+  if(error) return null;
+  return data;
+}
+
+function fillProfile(){
+  $("fullName").value = cap.full_name || "";
+  $("carType").value = cap.car_type || "";
+  $("carColor").value = cap.car_color || "";
+  $("plate").value = cap.plate || "";
+  $("bal").textContent = String(cap.balance_old || 0);
+}
+
+async function registerCaptain(){
+  const phone = ($("capPhone").value||"").trim();
+  const pin = ($("capPin").value||"").trim();
+  if(!phone || !pin) return showLockMsg("⚠️ اكتب رقم + PIN");
+
+  const full_name = prompt("اكتب اسمك الكامل") || "";
+  if(!full_name.trim()) return showLockMsg("⚠️ الاسم مطلوب");
+
+  const { data: exists } = await supa.from("captains").select("id").eq("phone", phone).maybeSingle();
+  if(exists) return showLockMsg("⚠️ هذا الرقم مسجل مسبقًا");
+
+  const { data, error } = await supa.from("captains")
+    .insert({ phone, pin, full_name: full_name.trim(), balance_old: 0 })
+    .select("*").single();
+
+  if(error){ console.error(error); return showLockMsg("❌ فشل التسجيل"); }
+
+  cap = data;
+  saveSession(cap.id);
+  setUIAuthed(true);
+  fillProfile();
+  toast("✅ تم إنشاء الحساب");
+  renderTrips();
+}
+
+async function loginCaptain(){
+  const phone = ($("capPhone").value||"").trim();
+  const pin = ($("capPin").value||"").trim();
+  if(!phone || !pin) return showLockMsg("⚠️ اكتب رقم + PIN");
+
+  const { data, error } = await supa.from("captains").select("*").eq("phone", phone).maybeSingle();
+  if(error){ console.error(error); return showLockMsg("❌ خطأ"); }
+  if(!data) return showLockMsg("⚠️ الحساب غير موجود");
+  if(String(data.pin) !== String(pin)) return showLockMsg("❌ PIN خطأ");
+
+  cap = data;
+  saveSession(cap.id);
+  setUIAuthed(true);
+  fillProfile();
+  toast("✅ تم الدخول");
+  renderTrips();
+}
+
+function showLockMsg(msg){
+  $("capLockMsg").style.display="block";
+  $("capLockMsg").textContent=msg;
+}
+
+async function saveProfile(){
+  const payload = {
+    full_name: ($("fullName").value||"").trim(),
+    car_type: ($("carType").value||"").trim(),
+    car_color: ($("carColor").value||"").trim(),
+    plate: ($("plate").value||"").trim()
+  };
+  if(!payload.full_name) return toast("⚠️ الاسم مطلوب");
+
+  const { error } = await supa.from("captains").update(payload).eq("id", cap.id);
+  if(error){ console.error(error); return toast("❌ فشل الحفظ"); }
+  cap = await loadCaptainById(cap.id);
+  fillProfile();
+  toast("✅ تم حفظ البروفايل");
+}
+
+function matchesFilter(t){
+  if(capFilter==="all") return true;
+  return t.status === capFilter;
+}
+
+async function renderTrips(){
   const list = $("capTrips");
   const empty = $("capEmpty");
 
-  let trips = loadTrips().sort((a,b)=>Number(b.id)-Number(a.id)).filter(matchesFilter);
+  const { data, error } = await supa.from("trips").select("*").order("created_at",{ascending:false});
+  if(error){ console.error(error); return toast("❌ فشل تحميل المشاوير"); }
 
-  list.innerHTML = "";
-  if(trips.length === 0){
-    empty.style.display = "block";
-    return;
-  }
-  empty.style.display = "none";
+  const trips = (data||[]).filter(matchesFilter);
 
-  trips.forEach(t=>{
-    const dist = (t.distanceKm != null) ? `${round1(t.distanceKm)} كم` : "—";
+  list.innerHTML="";
+  if(trips.length===0){ empty.style.display="block"; return; }
+  empty.style.display="none";
+
+  for(const t of trips){
+    const dist = (t.distance_km!=null) ? `${round1(t.distance_km)} كم` : "—";
     const div = document.createElement("div");
-    div.className = "item";
+    div.className="item";
     div.innerHTML = `
       <div class="itemTop">
         <div>
-          <b>${t.customerName}</b> • ${t.customerPhone}
-          <div class="meta">الانطلاق: ${t.pickupText}<br>الوجهة: ${t.dropoffText}</div>
-          <div class="meta">المسافة: <b>${dist}</b> • السعر: <b>${t.priceOld}</b> أوقية قديمة</div>
-          ${t.note ? `<div class="meta">ملاحظة: ${t.note}</div>` : ``}
-          ${t.captainName ? `<div class="meta">الكابتن: <b>${t.captainName}</b></div>` : ``}
+          <b>${esc(t.customer_name)}</b> • ${esc(t.customer_phone)}
+          <div class="meta">الانطلاق: ${esc(t.pickup_text)}<br>الوجهة: ${esc(t.dropoff_text)}</div>
+          <div class="meta">المسافة: <b>${dist}</b> • السعر: <b>${t.price_old}</b> أوقية قديمة</div>
+          ${t.captain_name ? `<div class="meta">الكابتن: <b>${esc(t.captain_name)}</b></div>`:""}
         </div>
-        <span class="badge">${t.status}</span>
+        <span class="badge">${esc(t.status)}</span>
       </div>
-
       <div class="actions">
         <button class="ok" data-a="accept" data-id="${t.id}">أقبل</button>
         <button class="bad" data-a="reject" data-id="${t.id}">أرفض</button>
         <button data-a="start" data-id="${t.id}">بدأ</button>
-        <button data-a="finish" data-id="${t.id}">انتهى</button>
-        <button data-a="call" data-phone="${t.customerPhone}">اتصال</button>
+        <button data-a="finish" data-id="${t.id}" class="bad">انتهى + خصم 7%</button>
+        <button data-a="call" data-phone="${esc(t.customer_phone)}">اتصال</button>
       </div>
     `;
-
     div.addEventListener("click",(e)=>{
       const b = e.target.closest("button");
       if(!b) return;
 
-      if(b.dataset.a === "call"){
-        const phone = b.dataset.phone || "";
-        if(phone) location.href = `tel:${phone}`;
+      if(b.dataset.a==="call"){
+        const p=b.dataset.phone||""; if(p) location.href=`tel:${p}`;
         return;
       }
-
-      handleAction(b.dataset.id, b.dataset.a);
+      updateTrip(b.dataset.id, b.dataset.a);
     });
-
     list.appendChild(div);
-  });
+  }
 }
 
-function handleAction(id, action){
-  const capName = ($("capName")?.value || "").trim();
-  const capPhone = ($("capPhone")?.value || "").trim();
-  if(!capName){
-    toast("⚠️ اكتب اسمك أولاً");
-    return;
+async function updateTrip(tripId, action){
+  // حمل الرحلة
+  const { data: trip, error: e1 } = await supa.from("trips").select("*").eq("id", tripId).single();
+  if(e1){ console.error(e1); return toast("❌ خطأ"); }
+
+  const captainName = cap.full_name;
+
+  if(action==="accept"){
+    if(trip.status !== "متوفر") return toast("⚠️ المشوار غير متوفر");
+    const { error } = await supa.from("trips").update({
+      status:"مقبول", captain_id: cap.id, captain_name: captainName
+    }).eq("id", tripId);
+    if(error){ console.error(error); return toast("❌ فشل"); }
+    toast("✅ تم القبول");
+    return renderTrips();
   }
 
-  const trips = loadTrips();
-  const i = trips.findIndex(t=>t.id===id);
-  if(i === -1){
-    toast("⚠️ المشوار غير موجود");
-    return;
+  if(action==="reject"){
+    const { error } = await supa.from("trips").update({
+      status:"مرفوض", captain_id: cap.id, captain_name: captainName
+    }).eq("id", tripId);
+    if(error){ console.error(error); return toast("❌ فشل"); }
+    toast("✅ تم الرفض");
+    return renderTrips();
   }
 
-  if(action === "accept"){
-    trips[i].status = STATUS.ACCEPTED;
-    trips[i].captainName = capPhone ? `${capName} (${capPhone})` : capName;
+  if(action==="start"){
+    if(trip.status !== "مقبول") return toast("⚠️ لازم يكون مقبول أولًا");
+    const { error } = await supa.from("trips").update({ status:"بدأ" }).eq("id", tripId);
+    if(error){ console.error(error); return toast("❌ فشل"); }
+    toast("✅ بدأ المشوار");
+    return renderTrips();
   }
 
-  if(action === "reject"){
-    trips[i].status = STATUS.REJECTED;
-    trips[i].captainName = capPhone ? `${capName} (${capPhone})` : capName;
-  }
+  if(action==="finish"){
+    if(trip.status !== "بدأ") return toast("⚠️ لازم يكون بدأ أولًا");
 
-  if(action === "start"){
-    if(trips[i].status !== STATUS.ACCEPTED && trips[i].status !== STATUS.STARTED){
-      toast("⚠️ لازم يكون مقبول أولاً");
-      return;
-    }
-    trips[i].status = STATUS.STARTED;
-  }
+    // ✅ خصم 7% من السعر من رصيد الكابتن
+    const fee = Math.ceil((Number(trip.price_old||0)) * FEE_PERCENT);
+    const newBal = Math.max(0, (cap.balance_old||0) - fee);
 
-  if(action === "finish"){
-    if(trips[i].status !== STATUS.STARTED){
-      toast("⚠️ لازم يكون بدأ أولاً");
-      return;
-    }
-    trips[i].status = STATUS.FINISHED;
-  }
+    // update trip + captain balance + wallet tx
+    const { error: e2 } = await supa.from("trips").update({ status:"انتهى" }).eq("id", tripId);
+    if(e2){ console.error(e2); return toast("❌ فشل إنهاء"); }
 
-  saveTrips(trips);
-  toast("✅ تم تحديث الحالة");
-  renderCaptain();
+    const { error: e3 } = await supa.from("captains").update({ balance_old: newBal }).eq("id", cap.id);
+    if(e3){ console.error(e3); return toast("❌ فشل خصم الرصيد"); }
+
+    await supa.from("wallet_tx").insert({ captain_id: cap.id, type:"fee", amount_old: -fee, note:`fee 7% trip ${tripId}` });
+
+    cap = await loadCaptainById(cap.id);
+    fillProfile();
+
+    toast(`✅ انتهى + خصم ${fee} أوقية`);
+    return renderTrips();
+  }
 }
 
-function setupUI(){
-  $("capRefreshBtn")?.addEventListener("click", renderCaptain);
-
+function setupFilters(){
   document.querySelectorAll(".chip").forEach(ch=>{
     ch.addEventListener("click", ()=>{
       document.querySelectorAll(".chip").forEach(x=>x.classList.remove("active"));
       ch.classList.add("active");
-      capFilter = ch.dataset.filter || "available";
-      renderCaptain();
+      capFilter = ch.dataset.filter || "متوفر";
+      renderTrips();
     });
   });
-
-  // تحديث تلقائي كل 2 ثواني
-  setInterval(()=>{
-    if(isAuthed()) renderCaptain();
-  }, 2000);
 }
 
-window.addEventListener("DOMContentLoaded", ()=>{
-  setupAuth();
-  if(isAuthed()){
-    setupUI();
-    renderCaptain();
+window.addEventListener("DOMContentLoaded", async ()=>{
+  await initSupabase();
+
+  $("logoutCapBtn").addEventListener("click", ()=>{
+    clearSession(); location.reload();
+  });
+
+  $("capLoginBtn").addEventListener("click", loginCaptain);
+  $("capRegisterBtn").addEventListener("click", registerCaptain);
+
+  const sid = loadSession();
+  if(sid){
+    cap = await loadCaptainById(sid);
+    if(cap){
+      setUIAuthed(true);
+      fillProfile();
+      $("saveProfileBtn").addEventListener("click", saveProfile);
+      $("capRefreshBtn").addEventListener("click", renderTrips);
+      setupFilters();
+      renderTrips();
+
+      // تحديث مباشر
+      try{
+        supa.channel("trips_changes")
+          .on("postgres_changes", { event:"*", schema:"public", table:"trips" }, ()=> renderTrips())
+          .subscribe();
+      }catch{}
+      return;
+    }
+    clearSession();
   }
+
+  setUIAuthed(false);
 });
