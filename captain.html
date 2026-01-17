@@ -1,45 +1,70 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Fast Car MR - الكابتن</title>
 
   <link rel="icon" href="Fastcar-logo.PNG">
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=2026_clean_1" />
 </head>
 <body>
 
 <header class="topbar">
   <div class="brand">
-    <img src="Fastcar-logo.PNG" class="brandLogo">
-    <div>
+    <img class="brandLogo" src="Fastcar-logo.PNG" alt="Fast Car MR">
+    <div class="brandText">
       <div class="brandTitle">Fast Car MR</div>
       <div class="brandSub">واجهة الكابتن</div>
     </div>
+  </div>
+
+  <div class="topActions">
+    <a class="pill" href="index.html">واجهة الإدارة</a>
+    <button id="logoutCapBtn" class="pill ghost" type="button">خروج</button>
   </div>
 </header>
 
 <main class="wrap">
 
-  <section class="card">
-    <h2>دخول الكابتن</h2>
-    <input id="capPass" type="password" placeholder="كلمة السر">
-    <button onclick="loginCap()">دخول</button>
+  <section id="capLockBox" class="card lock">
+    <h2>تسجيل دخول الكابتن</h2>
+    <p class="muted">ادخل كلمة سر الكابتن.</p>
+
+    <div class="field">
+      <label>كلمة السر</label>
+      <input id="capPassInput" type="password" placeholder="••••••••••" />
+    </div>
+
+    <button id="capLoginBtn" class="btn primary" type="button">دخول</button>
+    <div id="capLockMsg" class="msg" style="display:none;"></div>
+  </section>
+
+  <section id="capApp" class="card" style="display:none;">
+    <div class="headRow">
+      <h2>المشاوير</h2>
+      <button id="capRefreshBtn" class="btn ghost small" type="button">تحديث</button>
+    </div>
+
+    <div class="grid">
+      <div class="field">
+        <label>اسم الكابتن</label>
+        <input id="capName" type="text" placeholder="مثال: Ahmed" />
+      </div>
+      <div class="field">
+        <label>رقمك (اختياري)</label>
+        <input id="capPhone" type="tel" inputmode="tel" placeholder="مثال: 22223333" />
+      </div>
+    </div>
+
+    <div id="capEmpty" class="empty">لا يوجد مشاوير.</div>
+    <div id="capTrips" class="list"></div>
   </section>
 
 </main>
 
-<script>
-const CAP_PASS = "fastcarcaptain20032026";
-function loginCap(){
-  if(document.getElementById("capPass").value === CAP_PASS){
-    alert("تم الدخول بنجاح");
-  } else {
-    alert("كلمة السر غلط");
-  }
-}
-</script>
+<div id="toast" class="toast" style="display:none;"></div>
 
+<script src="captain.js?v=2026_clean_1"></script>
 </body>
 </html>
