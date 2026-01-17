@@ -1,150 +1,180 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ar" dir="rtl">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>Fast Car MR - الإدارة</title>
-
-  <link rel="icon" href="Fastcar-logo.PNG">
-  <link rel="stylesheet" href="style.css?v=keep" />
+  <link rel="stylesheet" href="style.css"/>
+  <link rel="preconnect" href="https://unpkg.com">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 </head>
 <body>
 
 <header class="topbar">
-  <div class="brand">
-    <img class="brandLogo" src="Fastcar-logo.PNG" alt="Fast Car MR">
-    <div class="brandText">
-      <div class="brandTitle">Fast Car MR</div>
-      <div class="brandSub">لوحة الإدارة</div>
+  <div class="topbarInner">
+    <div class="brand">
+      <img class="brandLogo" src="Fastcar-logo.PNG" alt="logo"/>
+      <div>
+        <div class="brandTitle">Fast Car MR</div>
+        <div class="brandSub">لوحة الإدارة</div>
+      </div>
     </div>
-  </div>
-
-  <div class="topActions">
-    <a class="pill" href="captain.html">واجهة الكابتن</a>
-    <button id="logoutBtn" class="pill ghost" type="button">خروج</button>
+    <div class="pills">
+      <a class="pill" href="captain.html">واجهة الكابتن</a>
+      <a class="pill" href="#" id="logoutBtn">خروج</a>
+    </div>
   </div>
 </header>
 
-<main class="wrap">
+<div class="container">
 
-  <!-- LOGIN -->
-  <section id="lockBox" class="card lock">
+  <!-- LOCK -->
+  <section id="lockBox" class="card">
     <h2>تسجيل دخول الإدارة</h2>
+    <div class="muted">كلمة سر الإدارة مطلوبة للدخول.</div>
     <div class="field">
       <label>كلمة السر</label>
-      <input id="passInput" type="password" placeholder="••••••••••">
+      <input id="adminPass" type="password" placeholder="اكتب كلمة السر"/>
     </div>
-    <button id="loginBtn" class="btn primary" type="button">دخول</button>
-    <div id="lockMsg" class="msg" style="display:none;"></div>
+    <div class="btnRow">
+      <button class="btn primary" id="adminLoginBtn">دخول</button>
+    </div>
+    <div id="adminMsg" class="smallHint" style="display:none"></div>
   </section>
 
-  <!-- CREATE TRIP -->
-  <section id="adminApp" class="card" style="display:none;">
-    <div class="headRow">
-      <h2>إضافة مشوار</h2>
-      <span class="badge">كل 3 كم = 900 أوقية قديمة</span>
-    </div>
+  <!-- APP -->
+  <main id="app" style="display:none">
 
-    <div class="grid">
-      <div class="field">
-        <label>اسم الزبون</label>
-        <input id="custName" placeholder="مثال: Ahmed">
-      </div>
-      <div class="field">
-        <label>رقم الزبون</label>
-        <input id="custPhone" inputmode="tel" placeholder="مثال: 22223333">
-      </div>
-    </div>
+    <section class="card">
+      <h2>إنشاء مشوار</h2>
 
-    <div class="grid">
-      <div class="field">
-        <label>الانطلاقة (اكتب أو اختر)</label>
-        <input id="pickupText" placeholder="اكتب الانطلاقة">
+      <div class="row">
+        <div class="field">
+          <label>اسم الزبون</label>
+          <input id="custName" placeholder="مثال: Fatimetou"/>
+        </div>
+        <div class="field">
+          <label>رقم الزبون</label>
+          <input id="custPhone" placeholder="مثال: 22223333" inputmode="tel"/>
+        </div>
       </div>
-      <div class="field">
-        <label>الوجهة (اكتب أو اختر)</label>
-        <input id="dropoffText" placeholder="اكتب الوجهة">
-      </div>
-    </div>
 
-    <div class="grid">
-      <div class="field">
-        <label>السعر (أوقية قديمة) — تلقائي</label>
-        <input id="priceOld" type="number" value="900">
+      <div class="row">
+        <div class="field">
+          <label>الانطلاقة (نص)</label>
+          <input id="fromText" placeholder="مثال: تفرغ زينة"/>
+        </div>
+        <div class="field">
+          <label>الوجهة (نص)</label>
+          <input id="toText" placeholder="مثال: دار النعيم"/>
+        </div>
       </div>
-      <div class="field">
-        <label>ملاحظة (اختياري)</label>
-        <input id="note" placeholder="ملاحظة للكابتن">
-      </div>
-    </div>
 
-    <div class="grid">
-      <div class="field">
-        <label>رقم واتساب للإرسال (الرقم اللي بدك تبعثله)</label>
-        <input id="waNumber" inputmode="tel" placeholder="مثال: 22223333">
+      <div class="row">
+        <div class="field">
+          <label>ملاحظة (اختياري)</label>
+          <input id="note" placeholder="مثال: اتصل قبل الوصول"/>
+        </div>
+        <div class="field">
+          <label>السعر (أوقية قديمة) — تلقائي</label>
+          <input id="priceOld" readonly value="—"/>
+          <div class="muted" style="margin-top:6px">المعادلة: كل 3 كم = 900 ⇒ كل 1 كم = 300 أوقية قديمة</div>
+        </div>
       </div>
-      <div class="field" style="display:flex;align-items:end;gap:10px">
-        <button id="waBtn" class="btn ghost" type="button">واتساب</button>
-        <button id="createTripBtn" class="btn primary" type="button">حفظ + إرسال للكباتن</button>
-      </div>
-    </div>
 
-    <div class="mapBox">
-      <div class="mapHint">
-        اضغط على الخريطة: أول مرة = الانطلاقة (A) / ثاني مرة = الوجهة (B)
+      <div class="smallHint">
+        اضغط على الخريطة: <b>أول ضغطة = الانطلاقة</b>، <b>ثاني ضغطة = الوجهة</b>.
+        <br/>سيتم حساب المسافة والسعر تلقائياً.
       </div>
-      <div id="map" style="height:420px;border-radius:18px;overflow:hidden;"></div>
 
-      <div class="mapInfo">
-        <div>المسافة: <b id="distanceLabel">—</b></div>
-        <div>السعر التلقائي: <b id="autoPriceLabel">900</b> أوقية قديمة</div>
+      <div class="mapBox" id="map"></div>
+
+      <div class="row" style="margin-top:12px">
+        <div class="field">
+          <label>الانطلاقة (إحداثيات)</label>
+          <input id="fromCoord" readonly value="غير محدد"/>
+        </div>
+        <div class="field">
+          <label>الوجهة (إحداثيات)</label>
+          <input id="toCoord" readonly value="غير محدد"/>
+        </div>
       </div>
 
       <div class="btnRow">
-        <button id="locateBtn" class="btn ghost" type="button">📍 موقعي (انطلاقة)</button>
-        <button id="resetMapBtn" class="btn ghost" type="button">تصفير</button>
+        <button id="createTripBtn" class="btn primary">إرسال الطلب للكباتن</button>
+        <button id="resetMapBtn" class="btn ghost">تصفير المواقع</button>
       </div>
-    </div>
-  </section>
 
-  <!-- TRIPS LIST + TOPUP -->
-  <section id="adminListBox" class="card" style="display:none;">
-    <div class="headRow">
-      <h2>المشاوير (مع الحالات)</h2>
-      <button id="refreshBtn" class="btn ghost small" type="button">تحديث</button>
-    </div>
+      <div class="hr"></div>
 
-    <div class="filters">
-      <button class="chip active" data-filter="all">الكل</button>
-      <button class="chip" data-filter="متوفر">متوفر</button>
-      <button class="chip" data-filter="مقبول">مقبول</button>
-      <button class="chip" data-filter="بدأ">بدأ</button>
-      <button class="chip" data-filter="انتهى">انتهى</button>
-      <button class="chip" data-filter="مرفوض">مرفوض</button>
-    </div>
+      <div class="row">
+        <div class="field">
+          <label>إرسال واتساب للزبون (يفتح واتساب)</label>
+          <button id="waBtn" class="btn ghost" type="button">فتح واتساب برسالة جاهزة</button>
+          <div class="muted" style="margin-top:6px">لازم يكون رقم الزبون مكتوب فوق.</div>
+        </div>
 
-    <div id="emptyAdmin" class="empty">لا يوجد مشاوير.</div>
-    <div id="adminTrips" class="list"></div>
-
-    <hr style="border:none;border-top:1px solid #e5e7eb;margin:14px 0">
-
-    <h3 style="margin:0 0 10px">شحن نقاط كابتن (بالكود)</h3>
-    <div class="grid">
-      <div class="field">
-        <label>Captain Code</label>
-        <input id="topupCode" placeholder="مثال: FC-AB12CD">
+        <div class="field">
+          <label>إرسال الطلب لكابتن معيّن (اختياري)</label>
+          <input id="targetCaptainCode" placeholder="اكتب كود كابتن مثل FC-ABC123 (اختياري)"/>
+          <div class="muted" style="margin-top:6px">إذا تركته فاضي = كل الكباتن يشوفوا المشوار.</div>
+        </div>
       </div>
-      <div class="field">
-        <label>عدد النقاط</label>
-        <input id="topupPoints" type="number" placeholder="مثال: 5000">
+    </section>
+
+    <section class="card">
+      <div class="itemTop">
+        <h2>قائمة المشاوير</h2>
+        <div class="btnRow">
+          <button id="refreshBtn" class="btn ghost small">تحديث</button>
+          <button id="clearAllBtn" class="btn danger small">حذف الكل</button>
+        </div>
       </div>
-    </div>
-    <button id="topupBtn" class="btn primary" type="button">شحن نقاط</button>
-  </section>
 
-</main>
+      <div class="filters">
+        <button class="chip active" data-filter="all">الكل</button>
+        <button class="chip" data-filter="available">متوفر</button>
+        <button class="chip" data-filter="accepted">مقبول</button>
+        <button class="chip" data-filter="started">بدأ</button>
+        <button class="chip" data-filter="finished">انتهى</button>
+        <button class="chip" data-filter="rejected">مرفوض</button>
+      </div>
 
-<div id="toast" class="toast" style="display:none;"></div>
-<script src="admin.js?v=final_all"></script>
+      <div class="kpis">
+        <div class="kpi"><div class="muted">عدد المشاوير</div><b id="kAll">0</b></div>
+        <div class="kpi"><div class="muted">متوفر</div><b id="kAvail">0</b></div>
+        <div class="kpi"><div class="muted">قيد التنفيذ</div><b id="kRun">0</b></div>
+        <div class="kpi"><div class="muted">انتهى</div><b id="kDone">0</b></div>
+      </div>
+
+      <div id="emptyAdmin" class="muted" style="margin-top:10px">لا يوجد مشاوير بعد.</div>
+      <div id="adminTrips" class="list" style="margin-top:10px"></div>
+    </section>
+
+    <section class="card">
+      <h2>شحن رصيد كابتن</h2>
+      <div class="row">
+        <div class="field">
+          <label>كود الكابتن</label>
+          <input id="topupCode" placeholder="مثال: FC-ABC123"/>
+        </div>
+        <div class="field">
+          <label>المبلغ (نقاط)</label>
+          <input id="topupAmount" placeholder="مثال: 5000" inputmode="numeric"/>
+        </div>
+      </div>
+      <div class="btnRow">
+        <button id="topupBtn" class="btn primary">شحن</button>
+      </div>
+      <div class="muted" style="margin-top:8px">ملاحظة: هذا رصيد محلي (على نفس الجهاز).</div>
+    </section>
+
+  </main>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="admin.js"></script>
 </body>
 </html>
