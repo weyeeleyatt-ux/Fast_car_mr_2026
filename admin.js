@@ -4,16 +4,14 @@ const SUPABASE_URL = "PASTE_SUPABASE_URL_HERE";
 const SUPABASE_ANON_KEY = "PASTE_SUPABASE_ANON_KEY_HERE";
 const GOOGLE_MAPS_API_KEY = "PASTE_GOOGLE_MAPS_KEY_HERE";
 
-// Pricing: كل 3 كم = 900 (حد أدنى 900)
 const STEP_KM = 3;
 const STEP_PRICE_OLD = 900;
 
-const AUTH_KEY_ADMIN = "fastcar_auth_admin_v9";
+const AUTH_KEY_ADMIN = "fastcar_auth_admin_v5";
 
 let supa = null;
 let adminFilter = "all";
 
-// Google Maps
 let gmap, directionsService, directionsRenderer;
 let pickupLatLng = null, dropoffLatLng = null;
 let pickupMarker = null, dropoffMarker = null;
@@ -22,31 +20,29 @@ let lastDistanceKm = null;
 function $(id){ return document.getElementById(id); }
 function toast(msg){
   const t = $("toast"); if(!t){ alert(msg); return; }
-  t.textContent = msg; t.style.display="block";
-  clearTimeout(window.__t); window.__t=setTimeout(()=>t.style.display="none",2300);
+  t.textContent = msg; t.style.display = "block";
+  clearTimeout(window.__t); window.__t = setTimeout(()=>t.style.display="none", 2300);
 }
-function round1(n){ return Math.round(n*10)/10; }
+function isAuthed(){ return sessionStorage.getItem(AUTH_KEY_ADMIN)==="1"; }
+function setAuthed(ok){ sessionStorage.setItem(AUTH_KEY_ADMIN, ok?"1":"0"); }
+
 function calcPriceOld(km){
   const steps = Math.max(1, Math.ceil(km / STEP_KM));
   return steps * STEP_PRICE_OLD;
 }
-
-function isAuthed(){ return sessionStorage.getItem(AUTH_KEY_ADMIN)==="1"; }
-function setAuthed(ok){ sessionStorage.setItem(AUTH_KEY_ADMIN, ok?"1":"0"); }
+function round1(n){ return Math.round(n*10)/10; }
 
 async function loadScript(src){
-  await new Promise((resolve,reject)=>{
-    const s=document.createElement("script");
-    s.src=src; s.async=true;
-    s.onload=resolve; s.onerror=reject;
+  await new Promise((resolve, reject)=>{
+    const s = document.createElement("script");
+    s.src = src; s.async = true;
+    s.onload = resolve; s.onerror = reject;
     document.head.appendChild(s);
   });
 }
 
 async function initSupabase(){
-  if(!window.supabase){
-    await loadScript("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2");
-  }
+  if(!window.supabase) await loadScript("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2");
   supa = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 }
 
@@ -68,24 +64,34 @@ function setupAuth(){
   $("loginBtn").addEventListener("click", ()=>{
     const p = ($("passInput").value||"").trim();
     if(p.toLowerCase() === ADMIN_PASSWORD.toLowerCase()){
-      setAuthed(true);
-      location.reload();
-    } else {
+      setAuthed(true); location.reload();
+    }else{
       $("lockMsg").style.display="block";
       $("lockMsg").textContent="❌ كلمة السر غير صحيحة";
     }
   });
 }
 
+function setupFilters(){
+  document.querySelectorAll(".chip").forEach(ch=>{
+    ch.addEventListener("click", ()=>{
+      document.querySelectorAll(".chip").forEach(x=>x.classList.remove("active"));
+      ch.classList.add("active");
+      adminFilter = ch.dataset.filter || "all";
+      renderAdminTrips();
+    });
+  });
+}
+
 function resetMap(){
-  pickupLatLng=null; dropoffLatLng=null; lastDistanceKm=null;
-  pickupMarker?.setMap(null); pickupMarker=null;
-  dropoffMarker?.setMap(null); dropoffMarker=null;
+  pickupLatLng = null; dropoffLatLng = null; lastDistanceKm = null;
+  pickupMarker?.setMap(null); pickupMarker = null;
+  dropoffMarker?.setMap(null); dropoffMarker = null;
   directionsRenderer?.set("directions", null);
 
-  $("distanceLabel").textContent="—";
-  $("autoPriceLabel").textContent=String(STEP_PRICE_OLD);
-  $("priceOld").value=String(STEP_PRICE_OLD);
+  $("distanceLabel").textContent = "—";
+  $("autoPriceLabel").textContent = String(STEP_PRICE_OLD);
+  $("priceOld").value = String(STEP_PRICE_OLD);
 }
 
 function setPickup(ll){
@@ -97,31 +103,6 @@ function setDropoff(ll){
   dropoffLatLng = ll;
   dropoffMarker?.setMap(null);
   dropoffMarker = new google.maps.Marker({ map:gmap, position:ll, label:"B" });
-}
-
-function computeRoute(){
-  if(!pickupLatLng || !dropoffLatLng) return;
-
-  directionsService.route({
-    origin: pickupLatLng,
-    destination: dropoffLatLng,
-    travelMode: google.maps.TravelMode.DRIVING
-  }, (res, status)=>{
-    if(status !== "OK" || !res?.routes?.[0]?.legs?.[0]){
-      toast("⚠️ تعذر حساب الطريق");
-      return;
-    }
-    directionsRenderer.setDirections(res);
-
-    const leg = res.routes[0].legs[0];
-    const km = (leg.distance?.value || 0) / 1000;
-    lastDistanceKm = km;
-
-    const price = calcPriceOld(km);
-    $("distanceLabel").textContent = `${round1(km)} كم`;
-    $("autoPriceLabel").textContent = String(price);
-    $("priceOld").value = String(price);
-  });
 }
 
 function setupAutocomplete(){
@@ -145,19 +126,15 @@ function setupAutocomplete(){
   ap.addListener("place_changed", ()=>{
     const p = ap.getPlace();
     if(!p?.geometry?.location) return;
-    const ll = { lat: p.geometry.location.lat(), lng: p.geometry.location.lng() };
-    setPickup(ll);
-    gmap.panTo(ll);
-    computeRoute();
+    const ll = { lat:p.geometry.location.lat(), lng:p.geometry.location.lng() };
+    setPickup(ll); gmap.panTo(ll); computeRoute();
   });
 
   ad.addListener("place_changed", ()=>{
     const p = ad.getPlace();
     if(!p?.geometry?.location) return;
-    const ll = { lat: p.geometry.location.lat(), lng: p.geometry.location.lng() };
-    setDropoff(ll);
-    gmap.panTo(ll);
-    computeRoute();
+    const ll = { lat:p.geometry.location.lat(), lng:p.geometry.location.lng() };
+    setDropoff(ll); gmap.panTo(ll); computeRoute();
   });
 }
 
@@ -166,8 +143,8 @@ function initMap(){
     center: { lat: 18.0735, lng: -15.9582 },
     zoom: 12,
     mapTypeId: "roadmap",
-    streetViewControl:false,
-    fullscreenControl:true
+    streetViewControl: false,
+    fullscreenControl: true
   });
 
   directionsService = new google.maps.DirectionsService();
@@ -177,7 +154,7 @@ function initMap(){
   resetMap();
 
   gmap.addListener("click", (e)=>{
-    const ll = { lat: e.latLng.lat(), lng: e.latLng.lng() };
+    const ll = { lat:e.latLng.lat(), lng:e.latLng.lng() };
 
     if(!pickupLatLng){
       setPickup(ll);
@@ -200,16 +177,34 @@ function initMap(){
   $("locateBtn").addEventListener("click", ()=>{
     if(!navigator.geolocation) return toast("⚠️ لا يوجد GPS");
     navigator.geolocation.getCurrentPosition((pos)=>{
-      const ll = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      const ll = { lat:pos.coords.latitude, lng:pos.coords.longitude };
       gmap.setCenter(ll); gmap.setZoom(15);
       setPickup(ll);
       $("pickupText").value = `${round1(ll.lat)}, ${round1(ll.lng)}`;
-    }, ()=>toast("⚠️ فعّل الموقع"), { enableHighAccuracy:true, timeout:12000 });
+    }, ()=> toast("⚠️ فعّل الموقع"), { enableHighAccuracy:true, timeout:12000 });
   });
 }
 
-function esc(s){
-  return String(s).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;");
+function computeRoute(){
+  if(!pickupLatLng || !dropoffLatLng) return;
+
+  directionsService.route({
+    origin: pickupLatLng,
+    destination: dropoffLatLng,
+    travelMode: google.maps.TravelMode.DRIVING
+  }, (res, status)=>{
+    if(status !== "OK" || !res?.routes?.[0]?.legs?.[0]) return toast("⚠️ تعذر حساب الطريق");
+    directionsRenderer.setDirections(res);
+
+    const leg = res.routes[0].legs[0];
+    const km = (leg.distance?.value || 0) / 1000;
+    lastDistanceKm = km;
+
+    const price = calcPriceOld(km);
+    $("distanceLabel").textContent = `${round1(km)} كم`;
+    $("autoPriceLabel").textContent = String(price);
+    $("priceOld").value = String(price);
+  });
 }
 
 async function createTrip(){
@@ -219,12 +214,8 @@ async function createTrip(){
   const dropoff_text = ($("dropoffText").value||"").trim();
   const note = ($("note").value||"").trim() || null;
 
-  if(!customer_name || !customer_phone || !pickup_text || !dropoff_text){
-    return toast("⚠️ عبّي كل الحقول");
-  }
-  if(!pickupLatLng || !dropoffLatLng){
-    return toast("⚠️ حدّد الانطلاق والوجهة على الخريطة أو من الاقتراحات");
-  }
+  if(!customer_name || !customer_phone || !pickup_text || !dropoff_text) return toast("⚠️ عبّي كل الحقول");
+  if(!pickupLatLng || !dropoffLatLng) return toast("⚠️ حدّد الانطلاق والوجهة");
 
   const price_old = Number(($("priceOld").value||"900").trim()) || 900;
 
@@ -246,6 +237,10 @@ async function createTrip(){
   $("custName").value=""; $("custPhone").value=""; $("note").value="";
   resetMap();
   renderAdminTrips();
+}
+
+function esc(s){
+  return String(s).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;");
 }
 
 async function renderAdminTrips(){
@@ -279,33 +274,18 @@ async function renderAdminTrips(){
         <button data-a="del" data-id="${t.id}" class="bad">حذف</button>
       </div>
     `;
-
     div.addEventListener("click", async (e)=>{
       const b = e.target.closest("button");
       if(!b) return;
       if(b.dataset.a==="del"){
-        const ok = confirm("حذف المشوار؟");
-        if(!ok) return;
         const { error } = await supa.from("trips").delete().eq("id", b.dataset.id);
         if(error){ console.error(error); return toast("❌ فشل الحذف"); }
         toast("🗑️ تم الحذف");
         renderAdminTrips();
       }
     });
-
     list.appendChild(div);
   }
-}
-
-function setupFilters(){
-  document.querySelectorAll(".chip").forEach(ch=>{
-    ch.addEventListener("click", ()=>{
-      document.querySelectorAll(".chip").forEach(x=>x.classList.remove("active"));
-      ch.classList.add("active");
-      adminFilter = ch.dataset.filter || "all";
-      renderAdminTrips();
-    });
-  });
 }
 
 async function topupCaptain(){
@@ -322,7 +302,7 @@ async function topupCaptain(){
   const { error: e2 } = await supa.from("captains").update({ balance_old: newBal }).eq("id", cap.id);
   if(e2){ console.error(e2); return toast("❌ فشل الشحن"); }
 
-  await supa.from("wallet_tx").insert({ captain_id: cap.id, type:"topup", amount_old: amt, note:"topup by admin" });
+  await supa.from("wallet_tx").insert({ captain_id: cap.id, type:"topup", amount_old: amt, note:"topup" });
 
   toast("✅ تم الشحن");
   $("topupAmount").value="";
@@ -340,10 +320,8 @@ window.addEventListener("DOMContentLoaded", async ()=>{
   $("refreshBtn").addEventListener("click", renderAdminTrips);
   $("topupBtn").addEventListener("click", topupCaptain);
   setupFilters();
-
   renderAdminTrips();
 
-  // Realtime
   try{
     supa.channel("trips_changes")
       .on("postgres_changes", { event:"*", schema:"public", table:"trips" }, ()=> renderAdminTrips())
