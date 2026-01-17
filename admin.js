@@ -9,8 +9,13 @@ const ADMIN_SESSION_KEY = "fastcar_admin_session_v1";
 const TRIPS_KEY = "fastcar_trips_v1";
 const CAPTAINS_KEY = "fastcar_captains_v1";
 
-const PRICE_PER_KM_OLD = 300; // 900 لكل 3 كم => 300 لكل 1 كم
-const NOUAKCHOTT = { lat: 18.0735, lng: -15.9582 };
+const STEP_KM = 3;
+const STEP_PRICE_OLD = 900;
+
+function calcPriceOld(km){
+  const steps = Math.max(1, Math.ceil(km / STEP_KM));
+  return steps * STEP_PRICE_OLD;
+}
 
 let map, fromMarker, toMarker, line;
 let fromLatLng = null;
