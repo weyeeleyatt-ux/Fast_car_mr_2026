@@ -1,363 +1,178 @@
-const VERSION = "ADMIN MAP v2026-1";
 const ADMIN_PASSWORD = "Fastcaradmin2026";
-
-// ✅ مفتاح موحّد للإدارة والكابتن (لا تغيّره)
-const STORE_KEY = "fastcar_shared_trips_v1";
 const AUTH_KEY_ADMIN = "fastcar_auth_admin_v1";
+const STORE_KEY = "fastcar_shared_trips_v1";
 
-const STATUS = {
-  AVAILABLE: "متوفر",
-  ACCEPTED: "مقبول",
-  REJECTED: "مرفوض",
-  STARTED: "بدأ",
-  FINISHED: "انتهى",
-};
+const MIN_PRICE = 900;
+const RATE_PER_KM = 300;
 
-// تسعير
-const MIN_PRICE_OLD = 900;
-const RATE_OLD_PER_KM = 300; // عدّل سعر/كم
-
-let adminFilter = "all";
-
-// Leaflet globals
-let map = null, pickupMarker = null, dropoffMarker = null, routeLine = null;
-let pickup = null;   // {lat, lon}
-let dropoff = null;  // {lat, lon}
+let map, pickupMarker, dropoffMarker, routeLine;
+let pickup = null, dropoff = null;
 
 function $(id){ return document.getElementById(id); }
 
 function toast(msg){
   const t = $("toast");
-  if(!t){ alert(msg); return; }
   t.textContent = msg;
   t.style.display = "block";
-  clearTimeout(window.__toastTO);
-  window.__toastTO = setTimeout(()=> t.style.display = "none", 2300);
-}
-
-function loadTrips(){
-  try { return JSON.parse(localStorage.getItem(STORE_KEY) || "[]"); }
-  catch { return []; }
-}
-function saveTrips(trips){
-  localStorage.setItem(STORE_KEY, JSON.stringify(trips));
+  clearTimeout(window.__to);
+  window.__to = setTimeout(()=> t.style.display="none", 2200);
 }
 
 function isAuthed(){ return sessionStorage.getItem(AUTH_KEY_ADMIN) === "1"; }
 function setAuthed(ok){ sessionStorage.setItem(AUTH_KEY_ADMIN, ok ? "1" : "0"); }
 
-function round1(n){ return Math.round(n*10)/10; }
-function calcPriceOld(distanceKm){
-  return Math.max(MIN_PRICE_OLD, Math.round(distanceKm * RATE_OLD_PER_KM));
+function loadTrips(){
+  try { return JSON.parse(localStorage.getItem(STORE_KEY)||"[]"); } catch { return []; }
 }
+function saveTrips(trips){ localStorage.setItem(STORE_KEY, JSON.stringify(trips)); }
+
+function round1(n){ return Math.round(n*10)/10; }
+function calcPrice(km){ return Math.max(MIN_PRICE, Math.round(km * RATE_PER_KM)); }
 
 function setupAuth(){
-  $("verBox") && ($("verBox").textContent = VERSION);
-  $("verBox2") && ($("verBox2").textContent = VERSION);
-
-  $("logoutBtn")?.addEventListener("click", ()=>{
-    setAuthed(false);
-    location.reload();
-  });
+  $("logoutBtn").addEventListener("click", ()=>{ setAuthed(false); location.reload(); });
 
   if(isAuthed()){
-    $("lockBox").style.display = "none";
+    $("lockBox").style.display="none";
+    $("adminApp").style.display="block";
+    setTimeout(()=>{ initMap(); }, 250);
     return;
   }
 
-  $("loginBtn")?.addEventListener("click", ()=>{
-    const p = ($("passInput")?.value || "").trim();
+  $("loginBtn").addEventListener("click", ()=>{
+    const p = ($("passInput").value||"").trim();
     if(p.toLowerCase() === ADMIN_PASSWORD.toLowerCase()){
       setAuthed(true);
-      toast("✅ تم الدخول");
       location.reload();
     } else {
-      $("lockMsg").style.display = "block";
-      $("lockMsg").textContent = "❌ كلمة السر غير صحيحة";
+      $("lockMsg").style.display="block";
+      $("lockMsg").textContent="❌ كلمة السر غير صحيحة";
     }
   });
 }
 
-/* ===========================
-   MAP (واضحة جدًا) + ROUTE + PRICE
-=========================== */
-function resetMapUI(){
-  pickup = null; dropoff = null;
-
-  pickupMarker?.remove(); pickupMarker = null;
-  dropoffMarker?.remove(); dropoffMarker = null;
-  routeLine?.remove(); routeLine = null;
-
-  $("pickupLabel").textContent = "غير محدد";
-  $("dropoffLabel").textContent = "غير محدد";
-  $("distanceLabel").textContent = "—";
-  $("autoPriceLabel").textContent = "—";
-
-  $("pickupText").value = "";
-  $("dropoffText").value = "";
-  $("priceOld").value = String(MIN_PRICE_OLD);
-}
-
-async function fetchRoute(p1, p2){
-  const url = `https://router.project-osrm.org/route/v1/driving/${p1.lon},${p1.lat};${p2.lon},${p2.lat}?overview=full&geometries=geojson`;
-  const r = await fetch(url);
-  if(!r.ok) throw new Error("route_failed");
-  const data = await r.json();
-  const route = data?.routes?.[0];
-  if(!route) throw new Error("no_route");
-  return { km: route.distance/1000, geo: route.geometry };
-}
-
-function drawRoute(geo){
-  routeLine?.remove();
-  routeLine = L.geoJSON(geo, {});
-  routeLine.addTo(map);
-}
-
-async function updateDistanceAndPrice(){
-  if(!pickup || !dropoff){
-    $("distanceLabel").textContent = "—";
-    $("autoPriceLabel").textContent = "—";
-    return;
-  }
-
-  $("distanceLabel").textContent = "جاري الحساب…";
-  $("autoPriceLabel").textContent = "…";
-
-  try{
-    const out = await fetchRoute(pickup, dropoff);
-    const km = out.km;
-    const priceOld = calcPriceOld(km);
-
-    $("distanceLabel").textContent = `${round1(km)} كم`;
-    $("autoPriceLabel").textContent = `${priceOld}`;
-    $("priceOld").value = String(priceOld);
-
-    drawRoute(out.geo);
-
-    // fit bounds
-    try{
-      const bounds = routeLine.getBounds();
-      map.fitBounds(bounds, { padding:[20,20] });
-    }catch{}
-  }catch{
-    $("distanceLabel").textContent = "تعذر حساب المسافة";
-    $("autoPriceLabel").textContent = "—";
-    toast("⚠️ تعذر حساب المسافة (تأكد من الإنترنت)");
-  }
-}
-
-function setPickup(latlng){
-  pickup = { lat: latlng.lat, lon: latlng.lng };
-  pickupMarker?.remove();
-  pickupMarker = L.marker(latlng).addTo(map).bindPopup("الانطلاق").openPopup();
-
-  $("pickupLabel").textContent = `${round1(latlng.lat)}, ${round1(latlng.lng)}`;
-  $("pickupText").value = `(${round1(latlng.lat)}, ${round1(latlng.lng)})`;
-}
-
-function setDropoff(latlng){
-  dropoff = { lat: latlng.lat, lon: latlng.lng };
-  dropoffMarker?.remove();
-  dropoffMarker = L.marker(latlng).addTo(map).bindPopup("الوجهة").openPopup();
-
-  $("dropoffLabel").textContent = `${round1(latlng.lat)}, ${round1(latlng.lng)}`;
-  $("dropoffText").value = `(${round1(latlng.lat)}, ${round1(latlng.lng)})`;
-}
-
 function forceMapFix(){
   if(!map) return;
-  try{ map.invalidateSize(true); }catch{}
-}
-
-async function locateMe(){
-  if(!navigator.geolocation){
-    toast("⚠️ جهازك لا يدعم GPS");
-    return;
-  }
-  toast("📍 جاري تحديد موقعك…");
-  navigator.geolocation.getCurrentPosition((pos)=>{
-    const lat = pos.coords.latitude;
-    const lon = pos.coords.longitude;
-    const ll = L.latLng(lat, lon);
-    map.setView(ll, 16);
-    setPickup(ll);
-    updateDistanceAndPrice();
-    setTimeout(forceMapFix, 200);
-  }, ()=>{
-    toast("⚠️ لم يتم الحصول على الموقع (فعّل GPS)");
-  }, { enableHighAccuracy:true, timeout:12000 });
+  try { map.invalidateSize(true); } catch {}
 }
 
 function initMap(){
-  const el = $("map");
-  if(!el) return;
+  map = L.map("map").setView([18.07,-15.95], 13);
 
-  // remove old map if exists
-  if(map){
-    try{ map.remove(); }catch{}
-    map = null;
-  }
-
-  map = L.map("map", { zoomControl: true }).setView([18.0735, -15.9582], 13);
-
-  // ✅ خرائط Esri World Street Map (واضحة جدًا مثل Google تقريبًا) - بدون API key
   L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}", {
     maxZoom: 20,
     attribution: "Tiles © Esri"
   }).addTo(map);
 
-  // fixes for iPhone grey map
-  setTimeout(forceMapFix, 150);
-  setTimeout(forceMapFix, 600);
-  setTimeout(forceMapFix, 1200);
+  setTimeout(forceMapFix, 200);
+  setTimeout(forceMapFix, 700);
+  setTimeout(forceMapFix, 1400);
 
   map.on("click", async (e)=>{
     if(!pickup){
-      setPickup(e.latlng);
-      await updateDistanceAndPrice();
-      setTimeout(forceMapFix, 150);
+      pickup = e.latlng;
+      pickupMarker?.remove();
+      pickupMarker = L.marker(pickup).addTo(map).bindPopup("الانطلاق").openPopup();
+      $("pickupLabel").textContent = `${round1(pickup.lat)}, ${round1(pickup.lng)}`;
+      $("pickupText").value = `(${round1(pickup.lat)}, ${round1(pickup.lng)})`;
       return;
     }
     if(!dropoff){
-      setDropoff(e.latlng);
-      await updateDistanceAndPrice();
-      setTimeout(forceMapFix, 150);
+      dropoff = e.latlng;
+      dropoffMarker?.remove();
+      dropoffMarker = L.marker(dropoff).addTo(map).bindPopup("الوجهة").openPopup();
+      $("dropoffLabel").textContent = `${round1(dropoff.lat)}, ${round1(dropoff.lng)}`;
+      $("dropoffText").value = `(${round1(dropoff.lat)}, ${round1(dropoff.lng)})`;
+      await updateRoute();
       return;
     }
-    // third click restart
-    resetMapUI();
-    setPickup(e.latlng);
-    setTimeout(forceMapFix, 150);
+    resetMap();
+    pickup = e.latlng;
+    pickupMarker?.remove();
+    pickupMarker = L.marker(pickup).addTo(map).bindPopup("الانطلاق").openPopup();
   });
 
-  $("resetMapBtn")?.addEventListener("click", ()=>{
-    resetMapUI();
-    setTimeout(forceMapFix, 150);
-  });
+  $("resetMapBtn").addEventListener("click", resetMap);
+  $("locateBtn").addEventListener("click", locateMe);
 
-  $("locateBtn")?.addEventListener("click", ()=>{
-    locateMe();
-  });
-
-  resetMapUI();
+  $("createTripBtn").addEventListener("click", createTrip);
+  $("sendWaBtn").addEventListener("click", sendWhatsApp);
 }
 
-/* ===========================
-   ADMIN: LIST + CREATE
-=========================== */
-function renderAdmin(){
-  const list = $("adminTrips");
-  const empty = $("emptyAdmin");
+function resetMap(){
+  pickup = null; dropoff = null;
+  pickupMarker?.remove(); pickupMarker = null;
+  dropoffMarker?.remove(); dropoffMarker = null;
+  routeLine?.remove(); routeLine = null;
+  $("pickupLabel").textContent = "غير محدد";
+  $("dropoffLabel").textContent = "غير محدد";
+  $("distanceLabel").textContent = "—";
+  $("autoPriceLabel").textContent = "900";
+  $("pickupText").value = "";
+  $("dropoffText").value = "";
+  $("priceOld").value = "900";
+  forceMapFix();
+}
 
-  let trips = loadTrips().sort((a,b)=>Number(b.id)-Number(a.id));
-
-  if(adminFilter !== "all"){
-    const mapF = {
-      available: STATUS.AVAILABLE,
-      accepted: STATUS.ACCEPTED,
-      started: STATUS.STARTED,
-      finished: STATUS.FINISHED,
-      rejected: STATUS.REJECTED
-    };
-    trips = trips.filter(t=>t.status === mapF[adminFilter]);
-  }
-
-  list.innerHTML = "";
-  if(trips.length === 0){
-    empty.style.display = "block";
+async function locateMe(){
+  if(!navigator.geolocation){
+    toast("⚠️ لا يوجد GPS");
     return;
   }
-  empty.style.display = "none";
-
-  trips.forEach(t=>{
-    const dist = (t.distanceKm != null) ? `${round1(t.distanceKm)} كم` : "—";
-    const div = document.createElement("div");
-    div.className = "item";
-    div.innerHTML = `
-      <div class="itemTop">
-        <div>
-          <b>${t.customerName}</b> • ${t.customerPhone}
-          <div class="meta">الانطلاق: ${t.pickupText}<br>الوجهة: ${t.dropoffText}</div>
-          <div class="meta">المسافة: <b>${dist}</b> • السعر: <b>${t.priceOld}</b> أوقية قديمة</div>
-          ${t.note ? `<div class="meta">ملاحظة: ${t.note}</div>` : ``}
-          ${t.captainName ? `<div class="meta">الكابتن: <b>${t.captainName}</b></div>` : ``}
-        </div>
-        <span class="badge">${t.status}</span>
-      </div>
-      <div class="actions">
-        <button class="ok" data-a="accept" data-id="${t.id}">مقبول</button>
-        <button data-a="start" data-id="${t.id}">بدأ</button>
-        <button data-a="finish" data-id="${t.id}">انتهى</button>
-        <button class="bad" data-a="reject" data-id="${t.id}">مرفوض</button>
-        <button class="bad" data-a="del" data-id="${t.id}">حذف</button>
-      </div>
-    `;
-    div.addEventListener("click",(e)=>{
-      const b = e.target.closest("button");
-      if(!b) return;
-      handleAction(b.dataset.id, b.dataset.a);
-    });
-    list.appendChild(div);
-  });
+  navigator.geolocation.getCurrentPosition((pos)=>{
+    const ll = L.latLng(pos.coords.latitude, pos.coords.longitude);
+    map.setView(ll, 16);
+    pickup = ll;
+    pickupMarker?.remove();
+    pickupMarker = L.marker(pickup).addTo(map).bindPopup("الانطلاق").openPopup();
+    $("pickupLabel").textContent = `${round1(pickup.lat)}, ${round1(pickup.lng)}`;
+    $("pickupText").value = `(${round1(pickup.lat)}, ${round1(pickup.lng)})`;
+    setTimeout(forceMapFix, 200);
+  }, ()=> toast("⚠️ فعّل الموقع"), { enableHighAccuracy:true, timeout:12000 });
 }
 
-function handleAction(id, action){
-  const trips = loadTrips();
-  const i = trips.findIndex(t=>t.id===id);
-  if(i===-1) return;
-
-  if(action==="del"){
-    trips.splice(i,1);
-    saveTrips(trips);
-    toast("🗑️ تم حذف المشوار");
-    renderAdmin();
-    return;
-  }
-
-  if(action==="accept") trips[i].status = STATUS.ACCEPTED;
-  if(action==="reject") trips[i].status = STATUS.REJECTED;
-
-  if(action==="start"){
-    if(trips[i].status !== STATUS.ACCEPTED && trips[i].status !== STATUS.STARTED){
-      toast("⚠️ لازم يكون مقبول أولاً");
-      return;
-    }
-    trips[i].status = STATUS.STARTED;
-  }
-
-  if(action==="finish"){
-    if(trips[i].status !== STATUS.STARTED){
-      toast("⚠️ لازم يكون بدأ أولاً");
-      return;
-    }
-    trips[i].status = STATUS.FINISHED;
-  }
-
-  saveTrips(trips);
-  toast("✅ تم تحديث الحالة");
-  renderAdmin();
+async function fetchRoute(p1, p2){
+  const url = `https://router.project-osrm.org/route/v1/driving/${p1.lng},${p1.lat};${p2.lng},${p2.lat}?overview=full&geometries=geojson`;
+  const r = await fetch(url);
+  const data = await r.json();
+  const rt = data?.routes?.[0];
+  if(!rt) throw new Error("no_route");
+  return { km: rt.distance/1000, geo: rt.geometry };
 }
 
-async function createTrip(){
+async function updateRoute(){
+  if(!pickup || !dropoff) return;
+  $("distanceLabel").textContent = "…";
+  try{
+    const out = await fetchRoute(pickup, dropoff);
+    const km = out.km;
+    const price = calcPrice(km);
+
+    $("distanceLabel").textContent = `${round1(km)} كم`;
+    $("autoPriceLabel").textContent = String(price);
+    $("priceOld").value = String(price);
+
+    routeLine?.remove();
+    routeLine = L.geoJSON(out.geo).addTo(map);
+    map.fitBounds(routeLine.getBounds(), { padding:[20,20] });
+    setTimeout(forceMapFix, 200);
+  }catch{
+    $("distanceLabel").textContent = "تعذر";
+    toast("⚠️ تعذر حساب المسافة (تأكد من الإنترنت)");
+  }
+}
+
+function createTrip(){
   const name = ($("custName").value||"").trim();
   const phone = ($("custPhone").value||"").trim();
-  const pickupText = ($("pickupText").value||"").trim();
-  const dropoffText = ($("dropoffText").value||"").trim();
-  const priceOld = Number(($("priceOld").value||"900").trim()) || 900;
+  const pu = ($("pickupText").value||"").trim();
+  const dof = ($("dropoffText").value||"").trim();
+  const price = Number(($("priceOld").value||"900").trim()) || 900;
   const note = ($("note").value||"").trim();
 
-  if(!name || !phone || !pickupText || !dropoffText){
-    toast("⚠️ عبّي كل الحقول");
+  if(!name || !phone || !pu || !dof){
+    toast("⚠️ عبّي كل الحقول وحدد الانطلاق والوجهة");
     return;
-  }
-
-  let dist = null;
-  if(pickup && dropoff){
-    try{
-      const out = await fetchRoute(pickup, dropoff);
-      dist = out.km;
-    }catch{}
   }
 
   const trips = loadTrips();
@@ -365,59 +180,49 @@ async function createTrip(){
     id: Date.now().toString(),
     customerName: name,
     customerPhone: phone,
-    pickupText,
-    dropoffText,
-    priceOld,
-    note,
-    status: STATUS.AVAILABLE,
-    captainName: "",
-    distanceKm: dist
+    pickupText: pu,
+    dropoffText: dof,
+    priceOld: price,
+    note: note,
+    status: "متوفر",
+    captainName: ""
   });
   saveTrips(trips);
-
-  $("custName").value = "";
-  $("custPhone").value = "";
-  $("note").value = "";
   toast("✅ تم إرسال المشوار");
-  renderAdmin();
 }
 
-function setupUI(){
-  $("createTripBtn")?.addEventListener("click", createTrip);
+function buildMessage(){
+  const name = ($("custName").value||"").trim();
+  const phone = ($("custPhone").value||"").trim();
+  const pu = ($("pickupText").value||"").trim();
+  const dof = ($("dropoffText").value||"").trim();
+  const price = ($("priceOld").value||"900").trim();
+  const note = ($("note").value||"").trim();
 
-  $("clearAllBtn")?.addEventListener("click", ()=>{
-    if(!confirm("حذف كل المشاوير؟")) return;
-    saveTrips([]);
-    toast("تم حذف الكل");
-    renderAdmin();
-  });
-
-  $("refreshBtn")?.addEventListener("click", renderAdmin);
-
-  document.querySelectorAll(".chip").forEach(ch=>{
-    ch.addEventListener("click", ()=>{
-      document.querySelectorAll(".chip").forEach(x=>x.classList.remove("active"));
-      ch.classList.add("active");
-      adminFilter = ch.dataset.filter || "all";
-      renderAdmin();
-    });
-  });
+  return `🚗 مشوار جديد - Fast Car MR
+👤 الزبون: ${name}
+📞 الرقم: ${phone}
+📍 الانطلاق: ${pu}
+🎯 الوجهة: ${dof}
+💰 السعر: ${price} أوقية قديمة
+${note ? `📝 ملاحظة: ${note}` : ""}`.trim();
 }
 
-window.addEventListener("DOMContentLoaded", ()=>{
-  setupAuth();
-
-  if(isAuthed()){
-    $("adminApp").style.display = "block";
-    $("adminListBox").style.display = "block";
-
-    setupUI();
-    renderAdmin();
-
-    // خريطة بعد إظهار الواجهة (حل الرمادي على iPhone)
-    setTimeout(()=>{
-      initMap();
-      setTimeout(forceMapFix, 300);
-    }, 250);
+function sendWhatsApp(){
+  const nums = ($("waNumbers").value||"").split(",").map(x=>x.trim()).filter(Boolean);
+  if(nums.length === 0){
+    toast("⚠️ اكتب أرقام واتساب أولاً");
+    return;
   }
-});
+  const msg = buildMessage();
+
+  // انسخ الرسالة تلقائيًا
+  navigator.clipboard?.writeText(msg).catch(()=>{});
+
+  // افتح أول رقم
+  const url = `https://wa.me/${nums[0]}?text=${encodeURIComponent(msg)}`;
+  window.open(url, "_blank");
+  toast("✅ فتح واتساب + تم نسخ الرسالة");
+}
+
+window.addEventListener("DOMContentLoaded", setupAuth);
