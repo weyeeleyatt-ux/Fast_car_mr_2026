@@ -1,3 +1,4 @@
+-- ===== TRIPS =====
 create table if not exists public.trips (
   id uuid primary key default gen_random_uuid(),
   created_at timestamptz not null default now(),
@@ -23,6 +24,7 @@ create table if not exists public.trips (
   captain_name text
 );
 
+-- ===== CAPTAINS =====
 create table if not exists public.captains (
   id uuid primary key default gen_random_uuid(),
   created_at timestamptz not null default now(),
@@ -39,6 +41,7 @@ create table if not exists public.captains (
   balance_old integer not null default 0
 );
 
+-- ===== WALLET TX =====
 create table if not exists public.wallet_tx (
   id uuid primary key default gen_random_uuid(),
   created_at timestamptz not null default now(),
@@ -49,6 +52,7 @@ create table if not exists public.wallet_tx (
   note text
 );
 
+-- ===== RLS (OPEN FOR TEST) =====
 alter table public.trips enable row level security;
 alter table public.captains enable row level security;
 alter table public.wallet_tx enable row level security;
