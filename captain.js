@@ -1,4 +1,4 @@
-/***********************
+const CAPTAIN_GATE_PASSWORD = "fastcarcaptain20032026";/***********************
   Fast Car MR - CAPTAIN
   LocalStorage Version (FAST FIX)
 ***********************/
@@ -171,3 +171,29 @@ function renderButtonsForTrip(t){
   if(t.status==="accepted" && t.captain_code===captain.code){
     return `
       <button class="btn primary small" data-act="start">بدء</button
+      document.addEventListener("DOMContentLoaded", () => {
+  const lock = document.getElementById("lockBox");
+  const app = document.getElementById("app");
+  const gateBtn = document.getElementById("gateBtn");
+
+  if (lock && app) {
+    lock.style.display = "block";
+    app.style.display = "none";
+  }
+
+  if (gateBtn) {
+    gateBtn.onclick = () => {
+      const p = (document.getElementById("gatePass").value || "").trim();
+      const msg = document.getElementById("msg");
+
+      if (p !== CAPTAIN_GATE_PASSWORD) {
+        if (msg) { msg.style.display="block"; msg.textContent="❌ كلمة السر غير صحيحة"; }
+        return;
+      }
+
+      if (msg) msg.style.display="none";
+      lock.style.display = "none";
+      app.style.display = "block";
+    };
+  }
+});
