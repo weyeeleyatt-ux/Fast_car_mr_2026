@@ -4,8 +4,8 @@
 ***********************/
 
 // ✅ ضع مفاتيح Supabase هنا
-const SUPABASE_URL = "PASTE_SUPABASE_URL_HERE";
-const SUPABASE_ANON_KEY = "PASTE_SUPABASE_ANON_KEY_HERE";
+const SUPABASE_URL = "https://qtezzcvkmftriuoirll.supabase.co";
+const SUPABASE_ANON_KEY = "هنا_تحط_الـ_anon_public_key";
 
 // خصم 7% عند انتهاء المشوار
 const FEE_PERCENT = 0.07;
