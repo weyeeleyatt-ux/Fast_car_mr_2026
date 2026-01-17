@@ -1,3 +1,16 @@
+-- ===== CAPTAINS =====
+create table if not exists public.captains (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+
+  code text unique not null,           -- الكود اللي يعطيه الكابتن للإدارة
+  full_name text not null,
+  phone text unique not null,
+  pass text not null,                  -- كلمة سر الكابتن (بسيطة للتجربة)
+
+  points integer not null default 0    -- رصيد النقاط
+);
+
 -- ===== TRIPS =====
 create table if not exists public.trips (
   id uuid primary key default gen_random_uuid(),
@@ -17,51 +30,34 @@ create table if not exists public.trips (
   distance_km double precision,
   price_old integer not null default 900,
 
+  status text not null default 'متوفر',   -- متوفر/مقبول/مرفوض/بدأ/انتهى
   note text,
-  status text not null default 'متوفر', -- متوفر/مقبول/مرفوض/بدأ/انتهى
 
-  captain_id uuid,
+  captain_id uuid references public.captains(id),
   captain_name text
 );
 
--- ===== CAPTAINS =====
-create table if not exists public.captains (
-  id uuid primary key default gen_random_uuid(),
-  created_at timestamptz not null default now(),
-
-  phone text unique not null,
-  pin text not null,
-  full_name text not null,
-
-  car_type text,
-  car_color text,
-  plate text,
-  photo_url text,
-
-  balance_old integer not null default 0
-);
-
--- ===== WALLET TX =====
-create table if not exists public.wallet_tx (
+-- ===== POINTS TRANSACTIONS (شحن/خصم) =====
+create table if not exists public.points_tx (
   id uuid primary key default gen_random_uuid(),
   created_at timestamptz not null default now(),
 
   captain_id uuid not null references public.captains(id) on delete cascade,
-  type text not null,        -- topup / fee
-  amount_old integer not null,
+  type text not null,          -- topup / fee
+  amount integer not null,     -- + أو -
   note text
 );
 
--- ===== RLS (OPEN FOR TEST) =====
-alter table public.trips enable row level security;
+-- ===== RLS (مفتوح للتجربة) =====
 alter table public.captains enable row level security;
-alter table public.wallet_tx enable row level security;
-
-drop policy if exists "trips_all" on public.trips;
-create policy "trips_all" on public.trips for all to anon using (true) with check (true);
+alter table public.trips enable row level security;
+alter table public.points_tx enable row level security;
 
 drop policy if exists "captains_all" on public.captains;
 create policy "captains_all" on public.captains for all to anon using (true) with check (true);
 
-drop policy if exists "wallet_all" on public.wallet_tx;
-create policy "wallet_all" on public.wallet_tx for all to anon using (true) with check (true);
+drop policy if exists "trips_all" on public.trips;
+create policy "trips_all" on public.trips for all to anon using (true) with check (true);
+
+drop policy if exists "points_all" on public.points_tx;
+create policy "points_all" on public.points_tx for all to anon using (true) with check (true);
