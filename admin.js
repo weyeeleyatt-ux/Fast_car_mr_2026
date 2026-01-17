@@ -1,422 +1,366 @@
-// ===== PASSWORDS =====
+/***********************
+  Fast Car MR - ADMIN
+  LocalStorage Version (FAST FIX)
+***********************/
+
 const ADMIN_PASSWORD = "Fastcaradmin2026";
+const ADMIN_SESSION_KEY = "fastcar_admin_session_v1";
 
-// ===== PUT YOUR KEYS HERE =====
-const SUPABASE_URL = "PASTE_SUPABASE_URL_HERE";
-const SUPABASE_ANON_KEY = "PASTE_SUPABASE_ANON_KEY_HERE";
-const GOOGLE_MAPS_API_KEY = "PASTE_GOOGLE_MAPS_KEY_HERE";
+const TRIPS_KEY = "fastcar_trips_v1";
+const CAPTAINS_KEY = "fastcar_captains_v1";
 
-// ===== PRICING =====
-// كل 3 كم = 900 أوقية قديمة
-const STEP_KM = 3;
-const STEP_PRICE_OLD = 900;
+const PRICE_PER_KM_OLD = 300; // 900 لكل 3 كم => 300 لكل 1 كم
+const NOUAKCHOTT = { lat: 18.0735, lng: -15.9582 };
 
-const AUTH_KEY_ADMIN = "fastcar_admin_auth_v1";
-
-let supa = null;
-let adminFilter = "all";
-
-// Google Maps
-let gmap, directionsService, directionsRenderer;
-let pickupLatLng = null, dropoffLatLng = null;
-let pickupMarker = null, dropoffMarker = null;
-let lastDistanceKm = null;
+let map, fromMarker, toMarker, line;
+let fromLatLng = null;
+let toLatLng = null;
+let activeFilter = "all";
 
 function $(id){ return document.getElementById(id); }
-
 function toast(msg){
   const t = $("toast");
   if(!t){ alert(msg); return; }
   t.textContent = msg;
-  t.style.display = "block";
+  t.style.display="block";
   clearTimeout(window.__t);
-  window.__t = setTimeout(()=> t.style.display="none", 2200);
+  window.__t=setTimeout(()=>t.style.display="none",2500);
 }
 
-function isAuthed(){ return sessionStorage.getItem(AUTH_KEY_ADMIN)==="1"; }
-function setAuthed(ok){ sessionStorage.setItem(AUTH_KEY_ADMIN, ok ? "1":"0"); }
+function showAdminMsg(msg){
+  const m = $("adminMsg");
+  m.style.display="block";
+  m.textContent = msg;
+}
+function hideAdminMsg(){
+  const m = $("adminMsg");
+  m.style.display="none";
+}
 
-function round1(n){ return Math.round(n*10)/10; }
+function loadTrips(){
+  try{ return JSON.parse(localStorage.getItem(TRIPS_KEY) || "[]"); }catch{ return []; }
+}
+function saveTrips(arr){
+  localStorage.setItem(TRIPS_KEY, JSON.stringify(arr));
+}
+function loadCaptains(){
+  try{ return JSON.parse(localStorage.getItem(CAPTAINS_KEY) || "[]"); }catch{ return []; }
+}
+function saveCaptains(arr){
+  localStorage.setItem(CAPTAINS_KEY, JSON.stringify(arr));
+}
+
+function setAuthed(on){
+  $("lockBox").style.display = on ? "none" : "block";
+  $("app").style.display = on ? "block" : "none";
+}
+
+function isAuthed(){
+  return localStorage.getItem(ADMIN_SESSION_KEY) === "1";
+}
+
+function kmDistance(a,b){
+  // haversine
+  const R = 6371;
+  const dLat = (b.lat-a.lat) * Math.PI/180;
+  const dLon = (b.lng-a.lng) * Math.PI/180;
+  const la1 = a.lat * Math.PI/180;
+  const la2 = b.lat * Math.PI/180;
+  const x = Math.sin(dLat/2)**2 + Math.cos(la1)*Math.cos(la2)*Math.sin(dLon/2)**2;
+  const c = 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1-x));
+  return R*c;
+}
 
 function calcPriceOld(km){
-  const steps = Math.max(1, Math.ceil(km / STEP_KM));
-  return steps * STEP_PRICE_OLD;
+  return Math.round(km * PRICE_PER_KM_OLD);
 }
 
-async function loadScript(src){
-  await new Promise((resolve, reject)=>{
-    const s = document.createElement("script");
-    s.src = src; s.async = true;
-    s.onload = resolve; s.onerror = reject;
-    document.head.appendChild(s);
-  });
-}
+function updateRouteUI(){
+  $("fromCoord").value = fromLatLng ? `${fromLatLng.lat.toFixed(6)}, ${fromLatLng.lng.toFixed(6)}` : "غير محدد";
+  $("toCoord").value   = toLatLng ? `${toLatLng.lat.toFixed(6)}, ${toLatLng.lng.toFixed(6)}` : "غير محدد";
 
-async function initSupabase(){
-  if(!window.supabase){
-    await loadScript("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2");
+  if(fromLatLng && toLatLng){
+    const km = kmDistance(fromLatLng, toLatLng);
+    const price = calcPriceOld(km);
+    $("priceOld").value = String(price);
+
+    if(line) map.removeLayer(line);
+    line = L.polyline([fromLatLng, toLatLng], { weight: 5 }).addTo(map);
+    map.fitBounds(line.getBounds(), { padding:[20,20] });
+  }else{
+    $("priceOld").value = "—";
+    if(line){ map.removeLayer(line); line=null; }
   }
-  supa = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-}
-
-async function initGoogle(){
-  if(window.google?.maps) return;
-  await loadScript(
-    `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(GOOGLE_MAPS_API_KEY)}&libraries=places&region=MR&language=ar`
-  );
-}
-
-function setupAuth(){
-  $("logoutBtn").addEventListener("click", ()=>{ setAuthed(false); location.reload(); });
-
-  if(isAuthed()){
-    $("lockBox").style.display="none";
-    $("adminApp").style.display="block";
-    $("adminListBox").style.display="block";
-    return;
-  }
-
-  $("loginBtn").addEventListener("click", ()=>{
-    const p = ($("passInput").value||"").trim();
-    if(p.toLowerCase() === ADMIN_PASSWORD.toLowerCase()){
-      setAuthed(true);
-      location.reload();
-    } else {
-      $("lockMsg").style.display="block";
-      $("lockMsg").textContent="❌ كلمة السر غير صحيحة";
-    }
-  });
 }
 
 function resetMap(){
-  pickupLatLng = null;
-  dropoffLatLng = null;
-  lastDistanceKm = null;
-
-  if(pickupMarker){ pickupMarker.setMap(null); pickupMarker = null; }
-  if(dropoffMarker){ dropoffMarker.setMap(null); dropoffMarker = null; }
-
-  if(directionsRenderer){
-    directionsRenderer.set("directions", null);
-  }
-
-  $("distanceLabel").textContent = "—";
-  $("autoPriceLabel").textContent = String(STEP_PRICE_OLD);
-  $("priceOld").value = String(STEP_PRICE_OLD);
-}
-
-function setPickup(ll){
-  pickupLatLng = ll;
-  if(pickupMarker) pickupMarker.setMap(null);
-  pickupMarker = new google.maps.Marker({ map:gmap, position:ll, label:"A" });
-}
-
-function setDropoff(ll){
-  dropoffLatLng = ll;
-  if(dropoffMarker) dropoffMarker.setMap(null);
-  dropoffMarker = new google.maps.Marker({ map:gmap, position:ll, label:"B" });
-}
-
-function setupAutocomplete(){
-  const boundsNouakchott = new google.maps.LatLngBounds(
-    new google.maps.LatLng(17.95, -16.15),
-    new google.maps.LatLng(18.20, -15.85)
-  );
-
-  const ap = new google.maps.places.Autocomplete($("pickupText"), {
-    bounds: boundsNouakchott,
-    componentRestrictions: { country:"mr" },
-    fields: ["geometry","name","formatted_address"]
-  });
-
-  const ad = new google.maps.places.Autocomplete($("dropoffText"), {
-    bounds: boundsNouakchott,
-    componentRestrictions: { country:"mr" },
-    fields: ["geometry","name","formatted_address"]
-  });
-
-  ap.addListener("place_changed", ()=>{
-    const p = ap.getPlace();
-    if(!p?.geometry?.location) return;
-    const ll = { lat:p.geometry.location.lat(), lng:p.geometry.location.lng() };
-    setPickup(ll);
-    gmap.panTo(ll);
-    computeRoute();
-  });
-
-  ad.addListener("place_changed", ()=>{
-    const p = ad.getPlace();
-    if(!p?.geometry?.location) return;
-    const ll = { lat:p.geometry.location.lat(), lng:p.geometry.location.lng() };
-    setDropoff(ll);
-    gmap.panTo(ll);
-    computeRoute();
-  });
+  fromLatLng = null;
+  toLatLng = null;
+  if(fromMarker){ map.removeLayer(fromMarker); fromMarker=null; }
+  if(toMarker){ map.removeLayer(toMarker); toMarker=null; }
+  updateRouteUI();
 }
 
 function initMap(){
-  gmap = new google.maps.Map(document.getElementById("map"), {
-    center: { lat:18.0735, lng:-15.9582 }, // Nouakchott
-    zoom: 12,
-    mapTypeId: "roadmap",
-    streetViewControl: false,
-    fullscreenControl: true
-  });
+  map = L.map("map", { zoomControl:true }).setView([NOUAKCHOTT.lat, NOUAKCHOTT.lng], 12);
 
-  directionsService = new google.maps.DirectionsService();
-  directionsRenderer = new google.maps.DirectionsRenderer({ map:gmap, suppressMarkers:true });
+  // ✅ Tiles واضحة (OpenStreetMap Standard) - أفضل وضوح
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 19,
+    attribution: "&copy; OpenStreetMap"
+  }).addTo(map);
 
-  setupAutocomplete();
-  resetMap();
-
-  gmap.addListener("click", (e)=>{
-    const ll = { lat:e.latLng.lat(), lng:e.latLng.lng() };
-
-    if(!pickupLatLng){
-      setPickup(ll);
-      $("pickupText").value = `${round1(ll.lat)}, ${round1(ll.lng)}`;
-      return;
+  map.on("click", (e)=>{
+    if(!fromLatLng){
+      fromLatLng = { lat:e.latlng.lat, lng:e.latlng.lng };
+      fromMarker = L.marker(e.latlng).addTo(map).bindPopup("الانطلاقة").openPopup();
+      toast("✅ تم تحديد الانطلاقة");
+    }else if(!toLatLng){
+      toLatLng = { lat:e.latlng.lat, lng:e.latlng.lng };
+      toMarker = L.marker(e.latlng).addTo(map).bindPopup("الوجهة").openPopup();
+      toast("✅ تم تحديد الوجهة");
+    }else{
+      toast("ℹ️ اضغط (تصفير المواقع) لتحديد من جديد");
     }
-    if(!dropoffLatLng){
-      setDropoff(ll);
-      $("dropoffText").value = `${round1(ll.lat)}, ${round1(ll.lng)}`;
-      computeRoute();
-      return;
-    }
-    resetMap();
-    setPickup(ll);
-    $("pickupText").value = `${round1(ll.lat)}, ${round1(ll.lng)}`;
+    updateRouteUI();
   });
 
-  $("resetMapBtn").addEventListener("click", resetMap);
-
-  $("locateBtn").addEventListener("click", ()=>{
-    if(!navigator.geolocation) return toast("⚠️ لا يوجد GPS");
-    navigator.geolocation.getCurrentPosition((pos)=>{
-      const ll = { lat:pos.coords.latitude, lng:pos.coords.longitude };
-      gmap.setCenter(ll);
-      gmap.setZoom(15);
-      setPickup(ll);
-      $("pickupText").value = `${round1(ll.lat)}, ${round1(ll.lng)}`;
-    }, ()=>toast("⚠️ فعّل الموقع"), { enableHighAccuracy:true, timeout:12000 });
-  });
+  // يحل مشكلة “خريطة رمادية” إذا كانت داخل عنصر مخفي سابقاً
+  setTimeout(()=>map.invalidateSize(), 300);
 }
 
-function computeRoute(){
-  if(!pickupLatLng || !dropoffLatLng) return;
-
-  directionsService.route({
-    origin: pickupLatLng,
-    destination: dropoffLatLng,
-    travelMode: google.maps.TravelMode.DRIVING
-  }, (res, status)=>{
-    if(status !== "OK" || !res?.routes?.[0]?.legs?.[0]){
-      toast("⚠️ تعذر حساب الطريق");
-      return;
-    }
-
-    directionsRenderer.setDirections(res);
-
-    const leg = res.routes[0].legs[0];
-    const km = (leg.distance?.value || 0)/1000;
-    lastDistanceKm = km;
-
-    const price = calcPriceOld(km);
-    $("distanceLabel").textContent = `${round1(km)} كم`;
-    $("autoPriceLabel").textContent = String(price);
-    $("priceOld").value = String(price);
-  });
-}
-
-function buildTripMessage(payload){
-  return `🚗 مشوار جديد - Fast Car MR
-الزبون: ${payload.customer_name}
-رقم الزبون: ${payload.customer_phone}
-الانطلاقة: ${payload.pickup_text}
-الوجهة: ${payload.dropoff_text}
-المسافة: ${payload.distance_km ? round1(payload.distance_km)+" كم" : "—"}
-السعر: ${payload.price_old} أوقية قديمة
-الحالة: ${payload.status}
-${payload.note ? "ملاحظة: "+payload.note : ""}`.trim();
-}
-
-async function sendWhatsAppNow(payload){
-  const to = ($("waNumber").value||"").trim();
-  if(!to) return toast("⚠️ اكتب رقم واتساب للإرسال");
-
-  const msg = buildTripMessage(payload);
-  // يفتح واتساب
-  const url = `https://wa.me/${encodeURIComponent(to)}?text=${encodeURIComponent(msg)}`;
-  window.open(url, "_blank");
-
-  // نسخ احتياطي
-  try{ await navigator.clipboard.writeText(msg); }catch{}
-}
-
-async function createTrip(){
-  const customer_name = ($("custName").value||"").trim();
-  const customer_phone = ($("custPhone").value||"").trim();
-  const pickup_text = ($("pickupText").value||"").trim();
-  const dropoff_text = ($("dropoffText").value||"").trim();
-  const note = ($("note").value||"").trim() || null;
-
-  if(!customer_name || !customer_phone || !pickup_text || !dropoff_text){
-    return toast("⚠️ عبّي كل الحقول");
-  }
-  if(!pickupLatLng || !dropoffLatLng){
-    return toast("⚠️ لازم تحدد الانطلاقة والوجهة على الخريطة أو من الاقتراحات");
-  }
-
-  const price_old = Number(($("priceOld").value||"900").trim()) || 900;
-
-  const payload = {
-    customer_name,
-    customer_phone,
-    pickup_text,
-    dropoff_text,
-    pickup_lat: pickupLatLng.lat,
-    pickup_lng: pickupLatLng.lng,
-    dropoff_lat: dropoffLatLng.lat,
-    dropoff_lng: dropoffLatLng.lng,
-    distance_km: lastDistanceKm,
-    price_old,
-    note,
-    status: "متوفر"
+function tripStatusBadge(status){
+  const map = {
+    available:"متوفر",
+    accepted:"مقبول",
+    started:"بدأ",
+    finished:"انتهى",
+    rejected:"مرفوض"
   };
-
-  const { error } = await supa.from("trips").insert(payload);
-  if(error){ console.error(error); return toast("❌ فشل حفظ المشوار"); }
-
-  toast("✅ تم حفظ المشوار");
-  // واتساب اختياري
-  if(($("waNumber").value||"").trim()){
-    await sendWhatsAppNow(payload);
-  }
-
-  $("custName").value="";
-  $("custPhone").value="";
-  $("note").value="";
-  resetMap();
-  renderAdminTrips();
+  return map[status] || status;
 }
 
-function esc(s){
-  return String(s).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;");
-}
+function renderAdmin(){
+  const all = loadTrips().sort((a,b)=>b.created_at - a.created_at);
 
-async function renderAdminTrips(){
+  // KPIs
+  const avail = all.filter(t=>t.status==="available").length;
+  const run   = all.filter(t=>t.status==="accepted"||t.status==="started").length;
+  const done  = all.filter(t=>t.status==="finished").length;
+
+  $("kAll").textContent = String(all.length);
+  $("kAvail").textContent = String(avail);
+  $("kRun").textContent = String(run);
+  $("kDone").textContent = String(done);
+
   const list = $("adminTrips");
-  const empty = $("emptyAdmin");
+  list.innerHTML = "";
 
-  const { data, error } = await supa.from("trips").select("*").order("created_at",{ascending:false});
-  if(error){ console.error(error); return toast("❌ فشل تحميل المشاوير"); }
+  const filtered = (activeFilter==="all") ? all : all.filter(t=>t.status===activeFilter);
 
-  const trips = (data||[]).filter(t => adminFilter==="all" ? true : t.status===adminFilter);
+  $("emptyAdmin").style.display = filtered.length ? "none" : "block";
 
-  list.innerHTML="";
-  if(trips.length===0){ empty.style.display="block"; return; }
-  empty.style.display="none";
-
-  for(const t of trips){
-    const dist = (t.distance_km!=null) ? `${round1(t.distance_km)} كم` : "—";
+  for(const t of filtered){
     const div = document.createElement("div");
-    div.className="item";
+    div.className = "item";
     div.innerHTML = `
       <div class="itemTop">
-        <div>
-          <b>${esc(t.customer_name)}</b> • ${esc(t.customer_phone)}
-          <div class="meta">الانطلاقة: ${esc(t.pickup_text)}<br>الوجهة: ${esc(t.dropoff_text)}</div>
-          <div class="meta">المسافة: <b>${dist}</b> • السعر: <b>${t.price_old}</b> أوقية قديمة</div>
-          ${t.captain_name ? `<div class="meta">الكابتن: <b>${esc(t.captain_name)}</b></div>`:""}
-        </div>
-        <span class="badge">${esc(t.status)}</span>
+        <div><b>${t.customer_name || "بدون اسم"}</b> <span class="muted">(${t.customer_phone||"-"})</span></div>
+        <div class="badge ${t.status}">${tripStatusBadge(t.status)}</div>
       </div>
-      <div class="actions">
-        <button class="bad" data-a="del" data-id="${t.id}">حذف</button>
+      <div class="itemGrid">
+        <div>
+          <div class="muted">الانطلاقة</div>
+          <div>${t.from_text || "-"}</div>
+          <div class="muted">${t.from_lat ? (t.from_lat.toFixed(6)+", "+t.from_lng.toFixed(6)) : "-"}</div>
+        </div>
+        <div>
+          <div class="muted">الوجهة</div>
+          <div>${t.to_text || "-"}</div>
+          <div class="muted">${t.to_lat ? (t.to_lat.toFixed(6)+", "+t.to_lng.toFixed(6)) : "-"}</div>
+        </div>
+      </div>
+      <div class="hr"></div>
+      <div class="itemGrid">
+        <div><div class="muted">المسافة</div><b>${t.distance_km ? t.distance_km.toFixed(2)+" كم" : "-"}</b></div>
+        <div><div class="muted">السعر</div><b>${t.price_old ?? "-"} أوقية قديمة</b></div>
+      </div>
+      <div class="muted" style="margin-top:8px">
+        الكابتن: <b>${t.captain_name || "-"}</b> | كود: <b>${t.captain_code || "-"}</b>
+      </div>
+      <div class="btnRow">
+        <button class="btn ghost small" data-act="wa" data-id="${t.id}">واتساب الزبون</button>
+        <button class="btn danger small" data-act="del" data-id="${t.id}">حذف</button>
       </div>
     `;
-    div.addEventListener("click", async (e)=>{
-      const b = e.target.closest("button");
-      if(!b) return;
-      if(b.dataset.a==="del"){
-        const { error } = await supa.from("trips").delete().eq("id", b.dataset.id);
-        if(error){ console.error(error); return toast("❌ فشل الحذف"); }
-        toast("🗑️ تم الحذف");
-        renderAdminTrips();
-      }
-    });
     list.appendChild(div);
   }
+
+  // actions
+  list.querySelectorAll("button[data-act]").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      const id = btn.getAttribute("data-id");
+      const act = btn.getAttribute("data-act");
+      if(act==="del") return deleteTrip(id);
+      if(act==="wa") return whatsappCustomer(id);
+    });
+  });
 }
 
-function setupFilters(){
+function deleteTrip(id){
+  const all = loadTrips();
+  const next = all.filter(x=>String(x.id)!==String(id));
+  saveTrips(next);
+  toast("✅ تم الحذف");
+  renderAdmin();
+}
+
+function clearAll(){
+  if(!confirm("أكيد حذف كل المشاوير؟")) return;
+  saveTrips([]);
+  toast("✅ تم حذف الكل");
+  renderAdmin();
+}
+
+function whatsappLink(phone, text){
+  const clean = String(phone||"").replace(/[^\d+]/g,"");
+  const msg = encodeURIComponent(text || "");
+  // wa.me أفضل
+  return `https://wa.me/${clean}?text=${msg}`;
+}
+
+function whatsappDraftText(){
+  const name = ($("custName").value || "").trim();
+  const phone = ($("custPhone").value || "").trim();
+  const fromT = ($("fromText").value || "").trim();
+  const toT   = ($("toText").value || "").trim();
+  const price = $("priceOld").value;
+  return `Fast Car MR 🚗
+الزبون: ${name}
+الهاتف: ${phone}
+من: ${fromT}
+إلى: ${toT}
+السعر: ${price} أوقية قديمة`;
+}
+
+function whatsappCustomer(tripId){
+  const t = loadTrips().find(x=>String(x.id)===String(tripId));
+  if(!t) return;
+  const text = `Fast Car MR 🚗
+تم تسجيل طلبك.
+من: ${t.from_text||"-"}
+إلى: ${t.to_text||"-"}
+السعر: ${t.price_old} أوقية قديمة`;
+  const url = whatsappLink(t.customer_phone, text);
+  window.open(url, "_blank");
+}
+
+function openWhatsAppFromForm(){
+  const phone = ($("custPhone").value || "").trim();
+  if(!phone) return toast("اكتب رقم الزبون أولاً");
+  const url = whatsappLink(phone, whatsappDraftText());
+  window.open(url, "_blank");
+}
+
+function createTrip(){
+  const customer_name = ($("custName").value||"").trim();
+  const customer_phone = ($("custPhone").value||"").trim();
+  const from_text = ($("fromText").value||"").trim();
+  const to_text = ($("toText").value||"").trim();
+  const note = ($("note").value||"").trim();
+  const targetCaptainCode = ($("targetCaptainCode").value||"").trim().toUpperCase();
+
+  if(!customer_name || !customer_phone) return toast("اكتب اسم الزبون + رقم الزبون");
+  if(!from_text || !to_text) return toast("اكتب الانطلاقة + الوجهة");
+  if(!fromLatLng || !toLatLng) return toast("حدد الانطلاقة والوجهة على الخريطة");
+
+  const km = kmDistance(fromLatLng, toLatLng);
+  const price_old = calcPriceOld(km);
+
+  const trip = {
+    id: String(Date.now()),
+    created_at: Date.now(),
+    customer_name,
+    customer_phone,
+    from_text,
+    to_text,
+    note,
+    from_lat: fromLatLng.lat,
+    from_lng: fromLatLng.lng,
+    to_lat: toLatLng.lat,
+    to_lng: toLatLng.lng,
+    distance_km: km,
+    price_old,
+    status: "available",
+    captain_code: null,
+    captain_name: null,
+    target_captain_code: targetCaptainCode || null
+  };
+
+  const all = loadTrips();
+  all.push(trip);
+  saveTrips(all);
+
+  toast("✅ تم إرسال المشوار (سيظهر للكباتن)");
+  renderAdmin();
+}
+
+function topupCaptain(){
+  const code = ($("topupCode").value||"").trim().toUpperCase();
+  const amt = Number(($("topupAmount").value||"").trim());
+
+  if(!code) return toast("اكتب كود الكابتن");
+  if(!Number.isFinite(amt) || amt<=0) return toast("اكتب مبلغ صحيح");
+
+  const caps = loadCaptains();
+  const c = caps.find(x=>String(x.code).toUpperCase()===code);
+  if(!c) return toast("❌ الكابتن غير موجود على هذا الجهاز");
+  c.points = Number(c.points||0) + amt;
+  saveCaptains(caps);
+  toast("✅ تم شحن الرصيد");
+}
+
+function initFilters(){
   document.querySelectorAll(".chip").forEach(ch=>{
     ch.addEventListener("click", ()=>{
       document.querySelectorAll(".chip").forEach(x=>x.classList.remove("active"));
       ch.classList.add("active");
-      adminFilter = ch.dataset.filter || "all";
-      renderAdminTrips();
+      activeFilter = ch.getAttribute("data-filter");
+      renderAdmin();
     });
   });
 }
 
-async function topupPoints(){
-  const code = ($("topupCode").value||"").trim();
-  const pts = Number(($("topupPoints").value||"0").trim());
-  if(!code || !pts || pts<=0) return toast("⚠️ اكتب كود + نقاط صحيحة");
-
-  const { data: cap, error: e1 } = await supa.from("captains").select("*").eq("code", code).maybeSingle();
-  if(e1){ console.error(e1); return toast("❌ خطأ"); }
-  if(!cap) return toast("⚠️ الكابتن غير موجود");
-
-  const newPts = (cap.points||0) + pts;
-  const { error: e2 } = await supa.from("captains").update({ points: newPts }).eq("id", cap.id);
-  if(e2){ console.error(e2); return toast("❌ فشل الشحن"); }
-
-  await supa.from("points_tx").insert({ captain_id: cap.id, type:"topup", amount: pts, note:`topup by admin (${code})` });
-
-  toast("✅ تم شحن النقاط");
-  $("topupPoints").value="";
-}
-
-window.addEventListener("DOMContentLoaded", async ()=>{
-  setupAuth();
-  if(!isAuthed()) return;
-
-  await initSupabase();
-  await initGoogle();
-
-  initMap();
-
-  $("createTripBtn").addEventListener("click", createTrip);
-  $("waBtn").addEventListener("click", async ()=>{
-    // يبني رسالة من المدخلات الحالية حتى قبل الحفظ
-    const payload = {
-      customer_name: ($("custName").value||"").trim(),
-      customer_phone: ($("custPhone").value||"").trim(),
-      pickup_text: ($("pickupText").value||"").trim(),
-      dropoff_text: ($("dropoffText").value||"").trim(),
-      distance_km: lastDistanceKm,
-      price_old: Number(($("priceOld").value||"900").trim()) || 900,
-      note: ($("note").value||"").trim() || null,
-      status: "متوفر"
-    };
-    if(!payload.customer_name || !payload.customer_phone || !payload.pickup_text || !payload.dropoff_text){
-      return toast("⚠️ عبّي الحقول أولًا");
+window.addEventListener("DOMContentLoaded", ()=>{
+  // auth
+  $("adminLoginBtn").addEventListener("click", ()=>{
+    hideAdminMsg();
+    const p = ($("adminPass").value||"").trim();
+    if(p !== ADMIN_PASSWORD){
+      return showAdminMsg("❌ كلمة السر غير صحيحة");
     }
-    await sendWhatsAppNow(payload);
+    localStorage.setItem(ADMIN_SESSION_KEY, "1");
+    setAuthed(true);
+    setTimeout(()=>map && map.invalidateSize(), 250);
   });
 
-  $("refreshBtn").addEventListener("click", renderAdminTrips);
-  $("topupBtn").addEventListener("click", topupPoints);
+  $("logoutBtn").addEventListener("click",(e)=>{
+    e.preventDefault();
+    localStorage.removeItem(ADMIN_SESSION_KEY);
+    location.reload();
+  });
 
-  setupFilters();
-  renderAdminTrips();
+  setAuthed(isAuthed());
 
-  // تحديث مباشر
-  try{
-    supa.channel("trips_changes")
-      .on("postgres_changes", { event:"*", schema:"public", table:"trips" }, ()=> renderAdminTrips())
-      .subscribe();
-  }catch{}
+  initMap();
+  initFilters();
+
+  $("resetMapBtn").addEventListener("click", resetMap);
+  $("createTripBtn").addEventListener("click", createTrip);
+  $("refreshBtn").addEventListener("click", renderAdmin);
+  $("clearAllBtn").addEventListener("click", clearAll);
+  $("waBtn").addEventListener("click", openWhatsAppFromForm);
+  $("topupBtn").addEventListener("click", topupCaptain);
+
+  renderAdmin();
 });
