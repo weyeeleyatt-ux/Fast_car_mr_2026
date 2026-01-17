@@ -6,7 +6,7 @@
   <title>Fast Car MR - الإدارة</title>
 
   <link rel="icon" href="Fastcar-logo.PNG">
-  <link rel="stylesheet" href="style.css?v=keep_2026" />
+  <link rel="stylesheet" href="style.css?v=keep" />
 </head>
 <body>
 
@@ -27,9 +27,9 @@
 
 <main class="wrap">
 
+  <!-- LOGIN -->
   <section id="lockBox" class="card lock">
     <h2>تسجيل دخول الإدارة</h2>
-    <p class="muted">ادخل كلمة السر</p>
     <div class="field">
       <label>كلمة السر</label>
       <input id="passInput" type="password" placeholder="••••••••••">
@@ -38,9 +38,10 @@
     <div id="lockMsg" class="msg" style="display:none;"></div>
   </section>
 
+  <!-- CREATE TRIP -->
   <section id="adminApp" class="card" style="display:none;">
     <div class="headRow">
-      <h2>إنشاء مشوار</h2>
+      <h2>إضافة مشوار</h2>
       <span class="badge">كل 3 كم = 900 أوقية قديمة</span>
     </div>
 
@@ -57,11 +58,11 @@
 
     <div class="grid">
       <div class="field">
-        <label>الانطلاق (اكتب أو اختر من الاقتراحات)</label>
-        <input id="pickupText" placeholder="اكتب الانطلاق">
+        <label>الانطلاقة (اكتب أو اختر)</label>
+        <input id="pickupText" placeholder="اكتب الانطلاقة">
       </div>
       <div class="field">
-        <label>الوجهة (اكتب أو اختر من الاقتراحات)</label>
+        <label>الوجهة (اكتب أو اختر)</label>
         <input id="dropoffText" placeholder="اكتب الوجهة">
       </div>
     </div>
@@ -77,9 +78,20 @@
       </div>
     </div>
 
+    <div class="grid">
+      <div class="field">
+        <label>رقم واتساب للإرسال (الرقم اللي بدك تبعثله)</label>
+        <input id="waNumber" inputmode="tel" placeholder="مثال: 22223333">
+      </div>
+      <div class="field" style="display:flex;align-items:end;gap:10px">
+        <button id="waBtn" class="btn ghost" type="button">واتساب</button>
+        <button id="createTripBtn" class="btn primary" type="button">حفظ + إرسال للكباتن</button>
+      </div>
+    </div>
+
     <div class="mapBox">
       <div class="mapHint">
-        Google Maps نواكشوط 100%: اضغط على الخريطة (A الانطلاق / B الوجهة) أو اكتبهم فوق.
+        اضغط على الخريطة: أول مرة = الانطلاقة (A) / ثاني مرة = الوجهة (B)
       </div>
       <div id="map" style="height:420px;border-radius:18px;overflow:hidden;"></div>
 
@@ -89,19 +101,16 @@
       </div>
 
       <div class="btnRow">
-        <button id="locateBtn" class="btn ghost" type="button">📍 موقعي (انطلاق)</button>
+        <button id="locateBtn" class="btn ghost" type="button">📍 موقعي (انطلاقة)</button>
         <button id="resetMapBtn" class="btn ghost" type="button">تصفير</button>
       </div>
     </div>
-
-    <div class="btnRow">
-      <button id="createTripBtn" class="btn primary" type="button">إرسال للكباتن</button>
-    </div>
   </section>
 
+  <!-- TRIPS LIST + TOPUP -->
   <section id="adminListBox" class="card" style="display:none;">
     <div class="headRow">
-      <h2>المشاوير + الحالات</h2>
+      <h2>المشاوير (مع الحالات)</h2>
       <button id="refreshBtn" class="btn ghost small" type="button">تحديث</button>
     </div>
 
@@ -119,23 +128,23 @@
 
     <hr style="border:none;border-top:1px solid #e5e7eb;margin:14px 0">
 
-    <h3 style="margin:0 0 10px">شحن رصيد كابتن</h3>
+    <h3 style="margin:0 0 10px">شحن نقاط كابتن (بالكود)</h3>
     <div class="grid">
       <div class="field">
-        <label>رقم الكابتن</label>
-        <input id="topupPhone" inputmode="tel" placeholder="رقم الكابتن">
+        <label>Captain Code</label>
+        <input id="topupCode" placeholder="مثال: FC-AB12CD">
       </div>
       <div class="field">
-        <label>مبلغ الشحن (أوقية قديمة)</label>
-        <input id="topupAmount" type="number" placeholder="مثال: 10000">
+        <label>عدد النقاط</label>
+        <input id="topupPoints" type="number" placeholder="مثال: 5000">
       </div>
     </div>
-    <button id="topupBtn" class="btn primary" type="button">شحن</button>
+    <button id="topupBtn" class="btn primary" type="button">شحن نقاط</button>
   </section>
 
 </main>
 
 <div id="toast" class="toast" style="display:none;"></div>
-<script src="admin.js?v=all_final"></script>
+<script src="admin.js?v=final_all"></script>
 </body>
 </html>
