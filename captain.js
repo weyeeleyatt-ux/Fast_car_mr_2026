@@ -1,7 +1,7 @@
 const SUPABASE_URL = "PASTE_SUPABASE_URL_HERE";
 const SUPABASE_ANON_KEY = "PASTE_SUPABASE_ANON_KEY_HERE";
 
-const AUTH_KEY_CAPTAIN = "fastcar_captain_session_v1";
+const SESSION_KEY = "fastcar_captain_session_v3";
 const FEE_PERCENT = 0.07;
 
 let supa = null;
@@ -29,17 +29,22 @@ async function initSupabase(){
   supa = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 }
 
-function saveSession(captainId){ localStorage.setItem(AUTH_KEY_CAPTAIN, captainId); }
-function loadSession(){ return localStorage.getItem(AUTH_KEY_CAPTAIN); }
-function clearSession(){ localStorage.removeItem(AUTH_KEY_CAPTAIN); }
+function saveSession(id){ localStorage.setItem(SESSION_KEY, id); }
+function loadSession(){ return localStorage.getItem(SESSION_KEY); }
+function clearSession(){ localStorage.removeItem(SESSION_KEY); }
 
-function setUIAuthed(on){
-  $("capLockBox").style.display = on ? "none" : "block";
-  $("capApp").style.display = on ? "block" : "none";
+function setAuthed(on){
+  $("capLockBox").style.display = on ? "none":"block";
+  $("capApp").style.display = on ? "block":"none";
 }
 
 function esc(s){
   return String(s).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;");
+}
+
+function showLockMsg(msg){
+  $("capLockMsg").style.display="block";
+  $("capLockMsg").textContent=msg;
 }
 
 async function loadCaptainById(id){
@@ -61,21 +66,22 @@ async function registerCaptain(){
   const pin = ($("capPin").value||"").trim();
   if(!phone || !pin) return showLockMsg("⚠️ اكتب رقم + PIN");
 
-  const full_name = prompt("اكتب اسمك الكامل") || "";
-  if(!full_name.trim()) return showLockMsg("⚠️ الاسم مطلوب");
+  const full_name = (prompt("اكتب اسمك الكامل")||"").trim();
+  if(!full_name) return showLockMsg("⚠️ الاسم مطلوب");
 
   const { data: exists } = await supa.from("captains").select("id").eq("phone", phone).maybeSingle();
   if(exists) return showLockMsg("⚠️ هذا الرقم مسجل مسبقًا");
 
-  const { data, error } = await supa.from("captains")
-    .insert({ phone, pin, full_name: full_name.trim(), balance_old: 0 })
+  const { data, error } = await supa
+    .from("captains")
+    .insert({ phone, pin, full_name, balance_old: 0 })
     .select("*").single();
 
   if(error){ console.error(error); return showLockMsg("❌ فشل التسجيل"); }
 
   cap = data;
   saveSession(cap.id);
-  setUIAuthed(true);
+  setAuthed(true);
   fillProfile();
   toast("✅ تم إنشاء الحساب");
   renderTrips();
@@ -93,28 +99,24 @@ async function loginCaptain(){
 
   cap = data;
   saveSession(cap.id);
-  setUIAuthed(true);
+  setAuthed(true);
   fillProfile();
   toast("✅ تم الدخول");
   renderTrips();
 }
 
-function showLockMsg(msg){
-  $("capLockMsg").style.display="block";
-  $("capLockMsg").textContent=msg;
-}
-
 async function saveProfile(){
   const payload = {
     full_name: ($("fullName").value||"").trim(),
-    car_type: ($("carType").value||"").trim(),
-    car_color: ($("carColor").value||"").trim(),
-    plate: ($("plate").value||"").trim()
+    car_type: ($("carType").value||"").trim() || null,
+    car_color: ($("carColor").value||"").trim() || null,
+    plate: ($("plate").value||"").trim() || null
   };
   if(!payload.full_name) return toast("⚠️ الاسم مطلوب");
 
   const { error } = await supa.from("captains").update(payload).eq("id", cap.id);
   if(error){ console.error(error); return toast("❌ فشل الحفظ"); }
+
   cap = await loadCaptainById(cap.id);
   fillProfile();
   toast("✅ تم حفظ البروفايل");
@@ -156,7 +158,7 @@ async function renderTrips(){
         <button class="ok" data-a="accept" data-id="${t.id}">أقبل</button>
         <button class="bad" data-a="reject" data-id="${t.id}">أرفض</button>
         <button data-a="start" data-id="${t.id}">بدأ</button>
-        <button data-a="finish" data-id="${t.id}" class="bad">انتهى + خصم 7%</button>
+        <button class="bad" data-a="finish" data-id="${t.id}">انتهى + خصم 7%</button>
         <button data-a="call" data-phone="${esc(t.customer_phone)}">اتصال</button>
       </div>
     `;
@@ -175,47 +177,39 @@ async function renderTrips(){
 }
 
 async function updateTrip(tripId, action){
-  // حمل الرحلة
   const { data: trip, error: e1 } = await supa.from("trips").select("*").eq("id", tripId).single();
   if(e1){ console.error(e1); return toast("❌ خطأ"); }
-
-  const captainName = cap.full_name;
 
   if(action==="accept"){
     if(trip.status !== "متوفر") return toast("⚠️ المشوار غير متوفر");
     const { error } = await supa.from("trips").update({
-      status:"مقبول", captain_id: cap.id, captain_name: captainName
+      status:"مقبول", captain_id: cap.id, captain_name: cap.full_name
     }).eq("id", tripId);
     if(error){ console.error(error); return toast("❌ فشل"); }
-    toast("✅ تم القبول");
-    return renderTrips();
+    toast("✅ تم القبول"); return renderTrips();
   }
 
   if(action==="reject"){
     const { error } = await supa.from("trips").update({
-      status:"مرفوض", captain_id: cap.id, captain_name: captainName
+      status:"مرفوض", captain_id: cap.id, captain_name: cap.full_name
     }).eq("id", tripId);
     if(error){ console.error(error); return toast("❌ فشل"); }
-    toast("✅ تم الرفض");
-    return renderTrips();
+    toast("✅ تم الرفض"); return renderTrips();
   }
 
   if(action==="start"){
     if(trip.status !== "مقبول") return toast("⚠️ لازم يكون مقبول أولًا");
     const { error } = await supa.from("trips").update({ status:"بدأ" }).eq("id", tripId);
     if(error){ console.error(error); return toast("❌ فشل"); }
-    toast("✅ بدأ المشوار");
-    return renderTrips();
+    toast("✅ بدأ المشوار"); return renderTrips();
   }
 
   if(action==="finish"){
     if(trip.status !== "بدأ") return toast("⚠️ لازم يكون بدأ أولًا");
 
-    // ✅ خصم 7% من السعر من رصيد الكابتن
     const fee = Math.ceil((Number(trip.price_old||0)) * FEE_PERCENT);
     const newBal = Math.max(0, (cap.balance_old||0) - fee);
 
-    // update trip + captain balance + wallet tx
     const { error: e2 } = await supa.from("trips").update({ status:"انتهى" }).eq("id", tripId);
     if(e2){ console.error(e2); return toast("❌ فشل إنهاء"); }
 
@@ -246,9 +240,7 @@ function setupFilters(){
 window.addEventListener("DOMContentLoaded", async ()=>{
   await initSupabase();
 
-  $("logoutCapBtn").addEventListener("click", ()=>{
-    clearSession(); location.reload();
-  });
+  $("logoutCapBtn").addEventListener("click", ()=>{ clearSession(); location.reload(); });
 
   $("capLoginBtn").addEventListener("click", loginCaptain);
   $("capRegisterBtn").addEventListener("click", registerCaptain);
@@ -257,14 +249,14 @@ window.addEventListener("DOMContentLoaded", async ()=>{
   if(sid){
     cap = await loadCaptainById(sid);
     if(cap){
-      setUIAuthed(true);
+      setAuthed(true);
       fillProfile();
+
       $("saveProfileBtn").addEventListener("click", saveProfile);
       $("capRefreshBtn").addEventListener("click", renderTrips);
       setupFilters();
       renderTrips();
 
-      // تحديث مباشر
       try{
         supa.channel("trips_changes")
           .on("postgres_changes", { event:"*", schema:"public", table:"trips" }, ()=> renderTrips())
@@ -275,5 +267,5 @@ window.addEventListener("DOMContentLoaded", async ()=>{
     clearSession();
   }
 
-  setUIAuthed(false);
+  setAuthed(false);
 });
